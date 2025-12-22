@@ -8,7 +8,7 @@ the $1 trillion AI problem caused by inconsistent data across systems.
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 
@@ -38,7 +38,7 @@ class ValidationResult:
         self.severity = severity
         self.message = message
         self.details = details or {}
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary"""
@@ -475,7 +475,7 @@ def generate_validation_report(
         "DATA QUALITY VALIDATION REPORT",
         "=" * 70,
         f"\nOverall Quality Score: {quality_score}/100",
-        f"Timestamp: {datetime.utcnow().isoformat()}",
+        f"Timestamp: {datetime.now(timezone.utc).isoformat()}",
         f"\nTotal Checks: {len(results)}",
         f"Passed: {sum(1 for r in results if r.passed)}",
         f"Failed: {sum(1 for r in results if not r.passed)}",

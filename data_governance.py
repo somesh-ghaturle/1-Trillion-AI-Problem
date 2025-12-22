@@ -6,7 +6,7 @@ management to ensure consistency across enterprise systems.
 """
 
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 import json
 
@@ -167,7 +167,7 @@ class DataDictionary:
                 name: asset.to_dict()
                 for name, asset in self.assets.items()
             },
-            "exported_at": datetime.utcnow().isoformat()
+            "exported_at": datetime.now(timezone.utc).isoformat()
         }
     
     def import_dictionary(self, data: Dict[str, Any]) -> None:
@@ -229,7 +229,7 @@ class DataLineageTracker:
                 "source": source,
                 "target": target,
                 "transformation": transformation,
-                "recorded_at": datetime.utcnow().isoformat()
+                "recorded_at": datetime.now(timezone.utc).isoformat()
             }
     
     def get_downstream(self, source: str) -> List[str]:
@@ -274,7 +274,7 @@ class DataLineageTracker:
             "asset": asset,
             "upstream": self.get_upstream(asset),
             "downstream": self.get_downstream(asset),
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.now(timezone.utc).isoformat()
         }
 
 
@@ -307,7 +307,7 @@ class DataGovernancePolicy:
             "description": description,
             "rules": rules,
             "enforcement_level": enforcement_level,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
     
     def get_policy(self, name: str) -> Optional[Dict[str, Any]]:
@@ -446,7 +446,7 @@ class GovernanceFramework:
         config = {
             "data_dictionary": self.data_dictionary.export_dictionary(),
             "policies": self.policy_engine.list_policies(),
-            "exported_at": datetime.utcnow().isoformat()
+            "exported_at": datetime.now(timezone.utc).isoformat()
         }
         
         with open(filepath, 'w') as f:
@@ -463,7 +463,7 @@ class GovernanceFramework:
             "=" * 70,
             "DATA GOVERNANCE REPORT",
             "=" * 70,
-            f"\nTimestamp: {datetime.utcnow().isoformat()}",
+            f"\nTimestamp: {datetime.now(timezone.utc).isoformat()}",
             f"\n--- Metrics Registry ---",
             f"Total Metrics: {len(self.data_dictionary.metrics)}",
             f"Total Assets: {len(self.data_dictionary.assets)}",
