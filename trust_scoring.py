@@ -9,7 +9,7 @@ confidence scores for data used in AI models.
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from enum import Enum
 
@@ -240,7 +240,7 @@ class TrustScoringEngine:
         
         try:
             timestamps = pd.to_datetime(df[timestamp_column])
-            now = pd.Timestamp.now()
+            now = pd.Timestamp.now(tz='UTC').tz_localize(None)
             
             ages = (now - timestamps).dt.days
             
@@ -418,7 +418,7 @@ class TrustScoringEngine:
             trust_level=trust_level,
             issues=issues,
             metadata=metadata,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
     
     def generate_trust_report(self, trust_score: TrustScore) -> str:
@@ -523,7 +523,7 @@ class TrustScoreHistory:
         Returns:
             Average score
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         recent_scores = [
             score.overall_score
             for score in self.history
