@@ -6,9 +6,12 @@ flowchart TB
 A[Enterprise Data Sources<br/>• Clinical Data<br/>• Finance Data<br/>• Ops Logs<br/>• Documents / PDFs] 
 
 %% -----------------------------
-%% ETL Layer
+%% ETL & Quality Layer
 %% -----------------------------
-B[ETL & Ingestion Layer<br/>AWS Glue / Azure Data Factory<br/>Spark Jobs<br/>PII Removal & Validation]
+subgraph Ingestion["Ingestion & Quality Control"]
+    B[ETL & Ingestion Layer<br/>AWS Glue / Azure Data Factory]
+    Qual[Data Quality Validator<br/>(data_quality_validator.py)<br/>• Schema & Anomaly Checks<br/>• PII Removal]
+end
 
 %% -----------------------------
 %% Storage Layer
@@ -16,9 +19,17 @@ B[ETL & Ingestion Layer<br/>AWS Glue / Azure Data Factory<br/>Spark Jobs<br/>PII
 C[Data Lake / Warehouse<br/>S3 / ADLS / Snowflake<br/>Versioned & Encrypted]
 
 %% -----------------------------
+%% Governance & Trust Layer
+%% -----------------------------
+subgraph Governance["Governance & Trust"]
+    Gov[Data Governance Framework<br/>(data_governance.py)<br/>• Metric Definitions<br/>• Metadata Management]
+    Trust[Trust Scoring Engine<br/>(trust_scoring.py)<br/>• Reliability Scores<br/>• Trust Levels]
+end
+
+%% -----------------------------
 %% Dataset Prep
 %% -----------------------------
-D[Training Dataset Preparation<br/>Instruction → Input → Output<br/>De-identified & Labeled]
+D[Training Dataset Preparation<br/>Instruction → Input → Output]
 
 E[RAG Dataset Preparation<br/>Document Chunking<br/>Embedding Generation]
 
@@ -27,38 +38,44 @@ E[RAG Dataset Preparation<br/>Document Chunking<br/>Embedding Generation]
 %% -----------------------------
 F[Base LLM (Frozen)<br/>LLaMA / Mistral / Phi]
 
-G[PEFT Fine-Tuning Layer<br/>LoRA / QLoRA / Instruction Tuning]
+G[PEFT Fine-Tuning Layer<br/>LoRA / QLoRA]
 
 H[Experiment Tracking & Model Registry<br/>MLflow / Azure ML Registry]
 
 %% -----------------------------
 %% Deployment
 %% -----------------------------
-I[Deployment Layer<br/>FastAPI + Docker<br/>Azure ML / SageMaker Endpoint]
+I[Deployment Layer<br/>FastAPI + Docker]
 
-J[Inference Runtime<br/>Optimized Serving<br/>Quantization / Autoscaling]
+J[Inference Runtime<br/>Optimized Serving]
 
 %% -----------------------------
 %% RAG Layer
 %% -----------------------------
-K[Vector Database<br/>FAISS / Pinecone / Azure AI Search]
+K[Vector Database<br/>FAISS / Pinecone]
 
 L[RAG Orchestrator<br/>Retriever + Context Injection]
 
 %% -----------------------------
 %% Applications
 %% -----------------------------
-M[Secure API Gateway<br/>Auth / RBAC / Logging]
+M[Secure API Gateway]
 
-N[Applications & AI Agents<br/>Dashboards<br/>Copilots<br/>Analytics Agents]
+N[Applications & AI Agents<br/>Dashboards / Copilots]
 
 %% -----------------------------
 %% Flow Connections
 %% -----------------------------
 A --> B
-B --> C
-C --> D
-C --> E
+B --> Qual
+Qual --> C
+
+C --> Trust
+Trust --> D
+Trust --> E
+
+Gov -.-> C
+Gov -.-> Trust
 
 D --> F
 F --> G
