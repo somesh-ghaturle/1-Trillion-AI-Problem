@@ -27,6 +27,16 @@ This framework provides:
 
 ## Features
 
+### 🚀 **NEW: Trust Control Center UI**
+The **Trust Control Center** is a Next.js dashboard that visualizes global data health and empowers semantic governance.
+
+**Key Capabilities**:
+- **Global Health Map**: Network graph of your enterprise data estate.
+- **Trust Score Cards**: Real-time reliability scores for Snowflake, Tableau, etc.
+- **Semantic Layer Simulator**: Interactive demo showing how "One Logic" fixes data inconsistencies.
+
+![Trust Control Center](dashboard/public/dashboard-preview.png)
+
 ### 🔍 Data Quality Validation (`data_quality_validator.py`)
 - **Completeness checks** - Validate required fields and null values
 - **Uniqueness validation** - Detect duplicate records
@@ -73,6 +83,15 @@ This will run through all four examples:
 2. Data Governance Framework
 3. Trust Scoring Engine
 4. Integrated Solution
+
+### Run the Trust Control Center (UI)
+
+```bash
+cd dashboard
+npm install
+npm run dev
+# Open http://localhost:3000
+```
 
 ### Basic Usage
 
