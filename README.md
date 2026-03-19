@@ -186,22 +186,22 @@ Below is a high-level flow diagram (Mermaid) showing the components and data flo
 
 ```mermaid
 flowchart LR
-    A[Data Sources<br/>(Snowflake, Tableau, DBs, APIs)] --> B[Integration & Collection Layer<br/>(Connectors, ETL, Sync)]
-    B --> C[Data Quality Validation Engine<br/>(Checks, Reconciliation, Anomaly Detection)]
-    C --> D[Data Governance Layer<br/>(Metadata, Policies, Lineage)]
-    C --> E[Monitoring & Analytics<br/>(Dashboards, Alerts)]
-    D --> F[Trust Scoring Engine<br/>(Multi-dim Scores, History)]
-    E --> F
-    F --> G[AI/ML Consumption<br/>(Model Training, Predictions)]
+A["Data Sources<br/>(Snowflake, Tableau, DBs, APIs)"] --> B["Integration & Collection Layer<br/>(Connectors, ETL, Sync)"]
+B --> C["Data Quality Validation Engine<br/>(Checks, Reconciliation, Anomaly Detection)"]
+C --> D["Data Governance Layer<br/>(Metadata, Policies, Lineage)"]
+C --> E["Monitoring & Analytics<br/>(Dashboards, Alerts)"]
+D --> F["Trust Scoring Engine<br/>(Multi-dim Scores, History)"]
+E --> F
+F --> G["AI/ML Consumption<br/>(Model Training, Predictions)"]
 
-    subgraph Control
-        H[Trust Control Center UI<br/>(Health Map, Trust Cards, Simulator)]
-        H -->|server control & metrics| E
-        H -->|semantic toggle| C
-    end
+subgraph Control
+H["Trust Control Center UI<br/>(Health Map, Trust Cards, Simulator)"]
+H -->|server control & metrics| E
+H -->|semantic toggle| C
+end
 
-    style A fill:#f9f,stroke:#333,stroke-width:1px
-    style G fill:#bfb,stroke:#333,stroke-width:1px
+style A fill:#f9f,stroke:#333,stroke-width:1px
+style G fill:#bfb,stroke:#333,stroke-width:1px
 ```
 
 ## Companies Affected
