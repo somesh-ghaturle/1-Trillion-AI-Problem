@@ -91,6 +91,30 @@ This solution provides a comprehensive framework to address data inconsistency a
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Flow Diagram
+
+Below is a high-level flow diagram (Mermaid) showing the components and data flow.
+
+```mermaid
+flowchart LR
+  A[Data Sources\n(Snowflake, Tableau, DBs, APIs)] --> B[Integration & Collection Layer\n(Connectors, ETL, Sync)]
+  B --> C[Data Quality Validation Engine\n(Checks, Reconciliation, Anomaly Detection)]
+  C --> D[Data Governance Layer\n(Metadata, Policies, Lineage)]
+  C --> E[Monitoring & Analytics\n(Dashboards, Alerts)]
+  D --> F[Trust Scoring Engine\n(Multi-dim Scores, History)]
+  E --> F
+  F --> G[AI/ML Consumption\n(Model Training, Predictions)]
+
+  subgraph Control
+    H[Trust Control Center UI\n(Health Map, Trust Cards, Simulator)]
+    H -->|server control & metrics| E
+    H -->|semantic toggle| C
+  end
+
+  style A fill:#f9f,stroke:#333,stroke-width:1px
+  style G fill:#bfb,stroke:#333,stroke-width:1px
+```
+
 ## Implementation Strategy
 
 ### Phase 1: Foundation (Weeks 1-4)
