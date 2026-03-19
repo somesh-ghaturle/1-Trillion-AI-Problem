@@ -97,16 +97,16 @@ Below is a high-level flow diagram (Mermaid) showing the components and data flo
 
 ```mermaid
 flowchart LR
-  A[Data Sources\n(Snowflake, Tableau, DBs, APIs)] --> B[Integration & Collection Layer\n(Connectors, ETL, Sync)]
-  B --> C[Data Quality Validation Engine\n(Checks, Reconciliation, Anomaly Detection)]
-  C --> D[Data Governance Layer\n(Metadata, Policies, Lineage)]
-  C --> E[Monitoring & Analytics\n(Dashboards, Alerts)]
-  D --> F[Trust Scoring Engine\n(Multi-dim Scores, History)]
+  A[Data Sources<br/>(Snowflake, Tableau, DBs, APIs)] --> B[Integration & Collection Layer<br/>(Connectors, ETL, Sync)]
+  B --> C[Data Quality Validation Engine<br/>(Checks, Reconciliation, Anomaly Detection)]
+  C --> D[Data Governance Layer<br/>(Metadata, Policies, Lineage)]
+  C --> E[Monitoring & Analytics<br/>(Dashboards, Alerts)]
+  D --> F[Trust Scoring Engine<br/>(Multi-dim Scores, History)]
   E --> F
-  F --> G[AI/ML Consumption\n(Model Training, Predictions)]
+  F --> G[AI/ML Consumption<br/>(Model Training, Predictions)]
 
   subgraph Control
-    H[Trust Control Center UI\n(Health Map, Trust Cards, Simulator)]
+    H[Trust Control Center UI<br/>(Health Map, Trust Cards, Simulator)]
     H -->|server control & metrics| E
     H -->|semantic toggle| C
   end
