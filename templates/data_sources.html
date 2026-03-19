@@ -2,133 +2,140 @@
 
 {% block title %}Data Sources - Trust Control Center{% endblock %}
 
+{% block breadcrumb %}
+<span class="separator">/</span>
+<span class="current">Data Sources</span>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <div class="card-header">
         <div>
-            <h2>🗄️ Data Sources</h2>
-            <p style="color: var(--gray-400); margin-top: 0.25rem;">Monitor and validate data from your enterprise systems</p>
+            <h2>&#128451; Data Sources</h2>
+            <p class="text-muted text-sm mt-1">Monitor and validate data from your enterprise systems</p>
         </div>
-        <a href="/admin/core/datasource/add/" class="btn">➕ Add New Source</a>
+        <a href="/admin/core/datasource/add/" class="btn">&#10133; Add New Source</a>
     </div>
 
     {% if sources %}
-    <table>
-        <thead>
-            <tr>
-                <th>Source</th>
-                <th>Type</th>
-                <th>Trust Score</th>
-                <th>Quality Score</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for source in sources %}
-            <tr>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <div class="system-icon {% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}">
-                            {% if source.source_type == 'snowflake' %}❄️
-                            {% elif source.source_type == 'tableau' %}📊
-                            {% elif source.source_type == 'database' %}🗃️
-                            {% elif source.source_type == 'api' %}🔌
-                            {% else %}📁{% endif %}
+    <div class="table-wrapper">
+        <table data-sortable>
+            <thead>
+                <tr>
+                    <th data-sort>Source</th>
+                    <th data-sort>Type</th>
+                    <th data-sort>Trust Score</th>
+                    <th data-sort>Quality Score</th>
+                    <th data-sort>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for source in sources %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-center gap-1">
+                            <div class="system-icon {% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% elif source.source_type == 'api' %}api{% elif source.source_type == 'file' %}file{% else %}database{% endif %}">
+                                {% if source.source_type == 'snowflake' %}&#10052;&#65039;
+                                {% elif source.source_type == 'tableau' %}&#128202;
+                                {% elif source.source_type == 'database' %}&#128451;
+                                {% elif source.source_type == 'api' %}&#128268;
+                                {% else %}&#128193;{% endif %}
+                            </div>
+                            <div>
+                                <a href="{% url 'data_source_detail' source.pk %}" class="fw-bold text-white">
+                                    {{ source.name }}
+                                </a>
+                                {% if source.description %}
+                                <div class="text-xs text-muted mt-1">{{ source.description|truncatewords:8 }}</div>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div>
-                            <a href="{% url 'data_source_detail' source.pk %}" style="font-weight: 600; color: white;">
-                                {{ source.name }}
-                            </a>
-                            {% if source.description %}
-                            <div style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">{{ source.description|truncatewords:8 }}</div>
-                            {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}">
+                            {{ source.get_source_type_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if source.latest_trust %}
+                            <div class="d-flex align-center gap-1">
+                                <strong class="text-white text-lg">{{ source.latest_trust.overall_score|floatformat:0 }}%</strong>
+                                <span class="badge badge-{{ source.latest_trust.trust_level }}">{{ source.latest_trust.trust_level }}</span>
+                            </div>
+                            <div class="score-bar" style="width: 100px; margin-top: 0.25rem;">
+                                <div class="score-bar-fill {{ source.latest_trust.trust_level }}" style="width: {{ source.latest_trust.overall_score }}%"></div>
+                            </div>
+                        {% else %}
+                            <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if source.latest_validation %}
+                            <div class="d-flex align-center gap-1">
+                                <strong class="text-white text-lg">{{ source.latest_validation.quality_score|floatformat:0 }}%</strong>
+                                {% if source.latest_validation.passed %}
+                                <span class="badge badge-success">&#10003;</span>
+                                {% else %}
+                                <span class="badge badge-danger">&#10007;</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if source.is_active %}
+                        <span class="badge badge-success">&#9679; Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">&#9675; Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'data_source_detail' source.pk %}" class="btn btn-sm btn-secondary">View</a>
+                            <a href="{% url 'validate_data' source.pk %}" class="btn btn-sm btn-secondary">Validate</a>
+                            <a href="{% url 'calculate_trust' source.pk %}" class="btn btn-sm">Trust</a>
                         </div>
-                    </div>
-                </td>
-                <td>
-                    <span class="badge badge-{% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}">
-                        {{ source.get_source_type_display }}
-                    </span>
-                </td>
-                <td>
-                    {% if source.latest_trust %}
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <strong style="color: white; font-size: 1.1rem;">{{ source.latest_trust.overall_score|floatformat:0 }}%</strong>
-                            <span class="badge badge-{{ source.latest_trust.trust_level }}">{{ source.latest_trust.trust_level }}</span>
-                        </div>
-                        <div class="score-bar" style="width: 100px; margin-top: 0.25rem;">
-                            <div class="score-bar-fill {{ source.latest_trust.trust_level }}" style="width: {{ source.latest_trust.overall_score }}%"></div>
-                        </div>
-                    {% else %}
-                        <span style="color: var(--gray-400);">--</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if source.latest_validation %}
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <strong style="color: white; font-size: 1.1rem;">{{ source.latest_validation.quality_score|floatformat:0 }}%</strong>
-                            {% if source.latest_validation.passed %}
-                            <span class="badge badge-success">✓</span>
-                            {% else %}
-                            <span class="badge badge-danger">✗</span>
-                            {% endif %}
-                        </div>
-                    {% else %}
-                        <span style="color: var(--gray-400);">--</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if source.is_active %}
-                    <span class="badge badge-success">● Active</span>
-                    {% else %}
-                    <span class="badge badge-danger">○ Inactive</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <a href="{% url 'data_source_detail' source.pk %}" class="btn btn-sm btn-secondary">View</a>
-                        <a href="{% url 'validate_data' source.pk %}" class="btn btn-sm btn-secondary">Validate</a>
-                        <a href="{% url 'calculate_trust' source.pk %}" class="btn btn-sm">Trust</a>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
     <div class="empty-state">
-        <div class="icon">🗄️</div>
-        <p>No data sources configured yet.</p>
-        <p style="font-size: 0.875rem; margin-top: 0.5rem; margin-bottom: 1rem;">Add your first data source to start monitoring data quality.</p>
-        <a href="/admin/core/datasource/add/" class="btn">➕ Add Your First Source</a>
+        <div class="empty-icon">&#128451;</div>
+        <h3>No data sources configured yet</h3>
+        <p>Add your first data source to start monitoring data quality across your enterprise systems.</p>
+        <a href="/admin/core/datasource/add/" class="btn">&#10133; Add Your First Source</a>
     </div>
     {% endif %}
 </div>
 
 <!-- Info Card -->
-<div class="card" style="background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(139,92,246,0.1) 100%); border-color: rgba(99,102,241,0.3);">
-    <h3>💡 Why Monitor Data Sources?</h3>
-    <p style="color: var(--gray-400); margin-top: 0.5rem; line-height: 1.7;">
-        The <strong style="color: white;">$1 Trillion AI Problem</strong> occurs when AI models are trained on inconsistent data from multiple systems.
-        By monitoring and validating your data sources (Snowflake, Tableau, databases), you can ensure:
+<div class="card info-card">
+    <h3>&#128161; Why Monitor Data Sources?</h3>
+    <p class="text-muted mt-1" style="line-height: 1.7;">
+        The <strong class="text-white">$1 Trillion AI Problem</strong> occurs when AI models are trained on inconsistent data from multiple systems.
+        By monitoring and validating your data sources, you ensure:
     </p>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.25rem;">✅</span>
-            <span style="color: var(--gray-400);">Consistent metrics across systems</span>
+    <div class="grid-4 mt-2">
+        <div class="d-flex align-center gap-1">
+            <span style="font-size: 1.25rem;">&#9989;</span>
+            <span class="text-muted">Consistent metrics across systems</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.25rem;">🎯</span>
-            <span style="color: var(--gray-400);">Reliable AI predictions</span>
+        <div class="d-flex align-center gap-1">
+            <span style="font-size: 1.25rem;">&#127919;</span>
+            <span class="text-muted">Reliable AI predictions</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.25rem;">💰</span>
-            <span style="color: var(--gray-400);">Reduced wasted resources</span>
+        <div class="d-flex align-center gap-1">
+            <span style="font-size: 1.25rem;">&#128176;</span>
+            <span class="text-muted">Reduced wasted resources</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.25rem;">🤝</span>
-            <span style="color: var(--gray-400);">Stakeholder trust in AI</span>
+        <div class="d-flex align-center gap-1">
+            <span style="font-size: 1.25rem;">&#129309;</span>
+            <span class="text-muted">Stakeholder trust in AI</span>
         </div>
     </div>
 </div>

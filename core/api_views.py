@@ -1,116 +1,141 @@
-import os
-import json
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_exempt
+import io
+import logging
 
-from . import views as core_views
+from rest_framework import viewsets, status
+from rest_framework.decorators import api_view, action
+from rest_framework.response import Response
+from django.utils import timezone
+
+from .models import DataSource, ValidationResult, TrustScore, GovernanceMetric
+from .serializers import (
+    DataSourceSerializer, ValidationResultSerializer,
+    TrustScoreSerializer, GovernanceMetricSerializer
+)
+from .utils import DataQualityValidator, TrustScoringEngine
+
+logger = logging.getLogger(__name__)
 
 
-def _check_admin_token(request):
-    admin_token = os.environ.get('ADMIN_TOKEN')
-    if not admin_token:
-        return True
-    auth = request.headers.get('Authorization', '')
-    if auth.startswith('Bearer '):
-        token = auth.split('Bearer ')[1].strip()
-        return token == admin_token
-    return False
+class DataSourceViewSet(viewsets.ModelViewSet):
+    """API endpoint for managing data sources."""
+    queryset = DataSource.objects.all()
+    serializer_class = DataSourceSerializer
 
+    @action(detail=True, methods=['post'], url_path='validate')
+    def run_validation(self, request, pk=None):
+        """Run data quality validation on uploaded CSV for this source."""
+        source = self.get_object()
+        csv_file = request.FILES.get('csv_file') or request.FILES.get('csv')
 
-@csrf_exempt
-def validate_endpoint(request):
-    """POST /api/validate/ - run data quality validation on uploaded CSV or sample data"""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST required'}, status=405)
+        if not csv_file:
+            return Response(
+                {'error': 'CSV file is required. Upload as csv_file or csv.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-    if not _check_admin_token(request):
-        return HttpResponseForbidden('Invalid ADMIN_TOKEN')
-
-    try:
-        # If a CSV file is uploaded, use it; otherwise use sample data
-        if request.FILES and 'csv' in request.FILES:
+        try:
             import pandas as pd
-            csv = request.FILES['csv']
-            df = pd.read_csv(csv)
-        else:
-            # use sample data from example_usage
-            from example_usage import create_sample_data
-            df, _ = create_sample_data()
+            df = pd.read_csv(io.StringIO(csv_file.read().decode('utf-8')))
 
-        from data_quality_validator import DataQualityValidator
+            validator = DataQualityValidator()
+            config = {
+                'required_columns': list(df.columns),
+                'key_columns': [df.columns[0]] if len(df.columns) > 0 else [],
+            }
 
-        validator = DataQualityValidator()
-        # lightweight default config
-        config = request.GET.dict()
-        # run validation
-        results, score = validator.run_validation_suite(df, {
-            'required_columns': ['customer_id', 'revenue', 'order_count', 'customer_segment'],
-            'key_columns': ['customer_id'],
-            'value_ranges': {'revenue': (0, 100000), 'order_count': (0, 1000)},
-            'expected_types': {'customer_id': 'int', 'revenue': 'float', 'order_count': 'int'}
-        })
+            results, quality_score = validator.run_validation_suite(df, config)
 
-        return JsonResponse({
-            'score': score,
-            'results': [r.to_dict() for r in results]
-        })
+            validation = ValidationResult.objects.create(
+                source=source,
+                passed=quality_score >= 70,
+                quality_score=quality_score,
+                total_rules=len(results),
+                passed_rules=sum(1 for r in results if r.passed),
+                failed_rules=sum(1 for r in results if not r.passed),
+                details={'results': [r.to_dict() for r in results]}
+            )
 
-    except Exception as e:
-        return HttpResponseBadRequest(str(e))
+            return Response({
+                'id': validation.id,
+                'quality_score': quality_score,
+                'passed': validation.passed,
+                'total_rules': validation.total_rules,
+                'passed_rules': validation.passed_rules,
+                'failed_rules': validation.failed_rules,
+                'results': [r.to_dict() for r in results]
+            })
 
+        except Exception as e:
+            logger.error("Validation failed for source %s: %s", pk, str(e))
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-@csrf_exempt
-def trust_endpoint(request):
-    """POST /api/trust/ - calculate trust score on uploaded CSV or sample data"""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST required'}, status=405)
+    @action(detail=True, methods=['post'], url_path='trust')
+    def calculate_trust(self, request, pk=None):
+        """Calculate trust score on uploaded CSV for this source."""
+        source = self.get_object()
+        csv_file = request.FILES.get('csv_file') or request.FILES.get('csv')
 
-    if not _check_admin_token(request):
-        return HttpResponseForbidden('Invalid ADMIN_TOKEN')
+        if not csv_file:
+            return Response(
+                {'error': 'CSV file is required. Upload as csv_file or csv.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-    try:
-        if request.FILES and 'csv' in request.FILES:
+        try:
             import pandas as pd
-            csv = request.FILES['csv']
-            df = pd.read_csv(csv)
-        else:
-            from example_usage import create_sample_data
-            df, _ = create_sample_data()
+            df = pd.read_csv(io.StringIO(csv_file.read().decode('utf-8')))
 
-        from trust_scoring import TrustScoringEngine
+            trust_engine = TrustScoringEngine()
+            trust_result = trust_engine.calculate_trust_score(df)
 
-        engine = TrustScoringEngine()
-        trust_score = engine.calculate_trust_score(df, {})
+            trust_score = TrustScore.objects.create(
+                source=source,
+                overall_score=trust_result.overall_score,
+                trust_level=trust_result.trust_level.value,
+                completeness_score=trust_result.dimensions.get('completeness', 0),
+                accuracy_score=trust_result.dimensions.get('accuracy', 0),
+                consistency_score=trust_result.dimensions.get('consistency', 0),
+                timeliness_score=trust_result.dimensions.get('timeliness', 0),
+                validity_score=trust_result.dimensions.get('validity', 0),
+                uniqueness_score=trust_result.dimensions.get('uniqueness', 0),
+                issues=trust_result.issues,
+                metadata=trust_result.metadata
+            )
 
-        return JsonResponse({'trust_score': trust_score.to_dict()})
+            return Response(TrustScoreSerializer(trust_score).data)
 
-    except Exception as e:
-        return HttpResponseBadRequest(str(e))
+        except Exception as e:
+            logger.error("Trust calculation failed for source %s: %s", pk, str(e))
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def governance_endpoint(request):
-    """GET /api/governance/ - return governance configuration JSON"""
-    if request.method != 'GET':
-        return JsonResponse({'error': 'GET required'}, status=405)
+class ValidationResultViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for viewing validation results."""
+    queryset = ValidationResult.objects.select_related('source').all()
+    serializer_class = ValidationResultSerializer
+    filterset_fields = ['source', 'passed']
 
-    try:
-        # if export exists, read it; otherwise generate
-        export_path = os.path.join(os.getcwd(), 'governance_export.json')
-        if os.path.exists(export_path):
-            with open(export_path, 'r') as f:
-                data = json.load(f)
-            return JsonResponse(data)
 
-        # generate on the fly
-        from data_governance import GovernanceFramework
-        framework = GovernanceFramework()
-        framework.register_standard_metrics()
-        out = framework.export_governance_config
-        # export_governance_config writes a file; reuse export then read
-        framework.export_governance_config(export_path)
-        with open(export_path, 'r') as f:
-            data = json.load(f)
-        return JsonResponse(data)
+class TrustScoreViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for viewing trust scores."""
+    queryset = TrustScore.objects.select_related('source').all()
+    serializer_class = TrustScoreSerializer
+    filterset_fields = ['source', 'trust_level']
 
-    except Exception as e:
-        return HttpResponseBadRequest(str(e))
+
+class GovernanceMetricViewSet(viewsets.ModelViewSet):
+    """API endpoint for managing governance metrics."""
+    queryset = GovernanceMetric.objects.all()
+    serializer_class = GovernanceMetricSerializer
+
+
+@api_view(['GET'])
+def api_health(request):
+    """API health check endpoint."""
+    latest = TrustScore.objects.order_by('-calculated_at').first()
+    return Response({
+        'status': 'running',
+        'total_sources': DataSource.objects.filter(is_active=True).count(),
+        'latest_trust_score': latest.overall_score if latest else None,
+        'timestamp': timezone.now().isoformat(),
+    })

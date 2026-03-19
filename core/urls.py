@@ -1,6 +1,14 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 from . import api_views
+
+# DRF Router
+router = DefaultRouter()
+router.register(r'sources', api_views.DataSourceViewSet)
+router.register(r'validations', api_views.ValidationResultViewSet)
+router.register(r'trust-scores', api_views.TrustScoreViewSet)
+router.register(r'governance-metrics', api_views.GovernanceMetricViewSet)
 
 urlpatterns = [
     # Main views
@@ -11,12 +19,8 @@ urlpatterns = [
     path('sources/<int:pk>/trust/', views.calculate_trust, name='calculate_trust'),
     path('governance/', views.governance_metrics, name='governance_metrics'),
 
-    # Legacy/Demo UI
-    path('ui/', views.ui, name='ui'),
-    path('api/', views.index, name='index'),
-
-    # API endpoints
-    path('api/validate/', api_views.validate_endpoint, name='api-validate'),
-    path('api/trust/', api_views.trust_endpoint, name='api-trust'),
-    path('api/governance/', api_views.governance_endpoint, name='api-governance'),
+    # API endpoints (DRF)
+    path('api/', api_views.api_health, name='index'),
+    path('api/v1/', include(router.urls)),
+    path('api/docs/', include('rest_framework.urls', namespace='rest_framework')),
 ]

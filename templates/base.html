@@ -1,644 +1,106 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Trust Control Center{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary: #8b5cf6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #1e1b4b;
-            --gray-50: #f8fafc;
-            --gray-100: #f1f5f9;
-            --gray-200: #e2e8f0;
-            --gray-400: #94a3b8;
-            --gray-600: #475569;
-            --gray-800: #1e293b;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-            min-height: 100vh;
-            color: #e2e8f0;
-        }
-
-        /* Header */
-        .header {
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logo-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .logo-text h1 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: white;
-        }
-
-        .logo-text p {
-            font-size: 0.75rem;
-            color: var(--gray-400);
-            margin-top: 2px;
-        }
-
-        .problem-badge {
-            background: linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(245,158,11,0.2) 100%);
-            border: 1px solid rgba(239,68,68,0.3);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            color: #fbbf24;
-        }
-
-        /* Navigation */
-        .nav {
-            background: rgba(255,255,255,0.02);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .nav ul {
-            list-style: none;
-            display: flex;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-
-        .nav a {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 1rem 1.25rem;
-            color: var(--gray-400);
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: all 0.2s;
-            border-bottom: 2px solid transparent;
-        }
-
-        .nav a:hover {
-            color: white;
-            background: rgba(255,255,255,0.05);
-        }
-
-        .nav a.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
-            background: rgba(99,102,241,0.1);
-        }
-
-        /* Container */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        /* Messages */
-        .messages {
-            margin-bottom: 1.5rem;
-        }
-
-        .message {
-            padding: 1rem 1.25rem;
-            border-radius: 12px;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .message.success {
-            background: rgba(16,185,129,0.15);
-            border: 1px solid rgba(16,185,129,0.3);
-            color: #34d399;
-        }
-
-        .message.error {
-            background: rgba(239,68,68,0.15);
-            border: 1px solid rgba(239,68,68,0.3);
-            color: #f87171;
-        }
-
-        /* Cards */
-        .card {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .card h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: white;
-        }
-
-        .card h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: white;
-            margin-bottom: 1rem;
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 1.5rem;
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
-        }
-
-        .stat-card.success::before { background: var(--success); }
-        .stat-card.warning::before { background: var(--warning); }
-        .stat-card.danger::before { background: var(--danger); }
-
-        .stat-card .icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(99,102,241,0.2);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .stat-card .label {
-            font-size: 0.8rem;
-            color: var(--gray-400);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-card .value {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: white;
-            line-height: 1;
-        }
-
-        .stat-card .subtitle {
-            font-size: 0.875rem;
-            color: var(--gray-400);
-            margin-top: 0.5rem;
-        }
-
-        /* Trust Gauge */
-        .trust-gauge {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 1rem;
-        }
-
-        .trust-gauge svg {
-            transform: rotate(-90deg);
-        }
-
-        .trust-gauge .gauge-bg {
-            fill: none;
-            stroke: rgba(255,255,255,0.1);
-            stroke-width: 10;
-        }
-
-        .trust-gauge .gauge-fill {
-            fill: none;
-            stroke-width: 10;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 1s ease;
-        }
-
-        .trust-gauge .gauge-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-
-        .trust-gauge .gauge-value {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: white;
-        }
-
-        .trust-gauge .gauge-label {
-            font-size: 0.75rem;
-            color: var(--gray-400);
-        }
-
-        /* Score Bar */
-        .score-bar {
-            height: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-
-        .score-bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-
-        .score-bar-fill.verified { background: linear-gradient(90deg, #10b981, #34d399); }
-        .score-bar-fill.high { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
-        .score-bar-fill.medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-        .score-bar-fill.low { background: linear-gradient(90deg, #f97316, #fb923c); }
-        .score-bar-fill.untrusted { background: linear-gradient(90deg, #ef4444, #f87171); }
-
-        /* Dimension Card */
-        .dimension-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-
-        .dimension-item {
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            padding: 1rem;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .dimension-item .name {
-            font-size: 0.875rem;
-            color: var(--gray-400);
-            margin-bottom: 0.5rem;
-        }
-
-        .dimension-item .score {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: white;
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 40px rgba(99,102,241,0.3);
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255,255,255,0.15);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-
-        .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.8rem;
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #10b981, #34d399);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444, #f87171);
-        }
-
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        th {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--gray-400);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-
-        tr:hover {
-            background: rgba(255,255,255,0.02);
-        }
-
-        /* Badges */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.35rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .badge-verified { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-        .badge-high { background: rgba(99,102,241,0.2); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
-        .badge-medium { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-        .badge-low { background: rgba(249,115,22,0.2); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
-        .badge-untrusted { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-        .badge-success { background: rgba(16,185,129,0.2); color: #34d399; }
-        .badge-danger { background: rgba(239,68,68,0.2); color: #f87171; }
-        .badge-snowflake { background: rgba(56,189,248,0.2); color: #38bdf8; }
-        .badge-tableau { background: rgba(245,158,11,0.2); color: #fbbf24; }
-        .badge-database { background: rgba(168,85,247,0.2); color: #c084fc; }
-
-        /* Forms */
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: var(--gray-400);
-            font-size: 0.9rem;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 0.875rem 1rem;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            font-size: 1rem;
-            color: white;
-            font-family: inherit;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
-        }
-
-        .form-group input::placeholder,
-        .form-group textarea::placeholder {
-            color: var(--gray-400);
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: var(--gray-400);
-        }
-
-        .empty-state .icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        /* Data Flow Visualization */
-        .data-flow {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            padding: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .data-node {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
-            text-align: center;
-            min-width: 120px;
-        }
-
-        .data-node.active {
-            border-color: var(--success);
-            box-shadow: 0 0 20px rgba(16,185,129,0.2);
-        }
-
-        .data-node .node-icon {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .data-node .node-name {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: white;
-        }
-
-        .flow-arrow {
-            color: var(--gray-400);
-            font-size: 1.5rem;
-        }
-
-        /* Grid layouts */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.5rem;
-        }
-
-        @media (max-width: 768px) {
-            .grid-2 {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Link styles */
-        a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        /* Problem banner */
-        .problem-banner {
-            background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(245,158,11,0.1) 100%);
-            border: 1px solid rgba(245,158,11,0.2);
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .problem-banner .icon {
-            font-size: 2rem;
-        }
-
-        .problem-banner .text h3 {
-            color: #fbbf24;
-            margin-bottom: 0.25rem;
-        }
-
-        .problem-banner .text p {
-            color: var(--gray-400);
-            font-size: 0.875rem;
-        }
-
-        /* System icons */
-        .system-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            margin-right: 0.5rem;
-        }
-
-        .system-icon.snowflake { background: rgba(56,189,248,0.2); }
-        .system-icon.tableau { background: rgba(245,158,11,0.2); }
-        .system-icon.database { background: rgba(168,85,247,0.2); }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <header class="header">
-        <div class="logo">
-            <div class="logo-icon">🎯</div>
-            <div class="logo-text">
-                <h1>Trust Control Center</h1>
-                <p>Solving the $1 Trillion AI Problem</p>
+    <!-- Mobile Sidebar Toggle -->
+    <button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="{% url 'dashboard' %}" class="sidebar-logo">
+                <div class="logo-icon">&#127919;</div>
+                <div class="logo-text">
+                    <h1>Trust Control Center</h1>
+                    <p>The $1T AI Problem</p>
+                </div>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Overview</div>
+                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">&#128202;</span> Dashboard
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Data Management</div>
+                <a href="{% url 'data_sources' %}" class="nav-link {% if request.resolver_match.url_name == 'data_sources' or request.resolver_match.url_name == 'data_source_detail' or request.resolver_match.url_name == 'validate_data' or request.resolver_match.url_name == 'calculate_trust' %}active{% endif %}">
+                    <span class="nav-icon">&#128451;</span> Data Sources
+                </a>
+                <a href="{% url 'governance_metrics' %}" class="nav-link {% if request.resolver_match.url_name == 'governance_metrics' %}active{% endif %}">
+                    <span class="nav-icon">&#128203;</span> Governance
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">API</div>
+                <a href="/api/" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                    <span class="nav-icon">&#128268;</span> API Status
+                </a>
+                <a href="/api/docs/" class="nav-link">
+                    <span class="nav-icon">&#128196;</span> API Docs
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">System</div>
+                <a href="/admin/" class="nav-link">
+                    <span class="nav-icon">&#9881;</span> Admin Panel
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="theme-toggle" id="themeToggle">
+                <span><span class="theme-icon">&#127769;</span> Dark Mode</span>
+                <div class="theme-switch"></div>
             </div>
         </div>
-        <div class="problem-badge">
-            💰 $1T+ Lost Annually to Bad Data
-        </div>
-    </header>
+    </aside>
 
-    <nav class="nav">
-        <ul>
-            <li><a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-                📊 Dashboard
-            </a></li>
-            <li><a href="{% url 'data_sources' %}" class="{% if request.resolver_match.url_name == 'data_sources' or request.resolver_match.url_name == 'data_source_detail' %}active{% endif %}">
-                🗄️ Data Sources
-            </a></li>
-            <li><a href="{% url 'governance_metrics' %}" class="{% if request.resolver_match.url_name == 'governance_metrics' %}active{% endif %}">
-                📋 Governance
-            </a></li>
-            <li><a href="/admin/">
-                ⚙️ Admin
-            </a></li>
-        </ul>
-    </nav>
-
-    <div class="container">
-        {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-            <div class="message {{ message.tags }}">
-                {% if message.tags == 'success' %}✅{% else %}❌{% endif %}
-                {{ message }}
+    <!-- Main Content -->
+    <div class="main-content">
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <div class="breadcrumb">
+                    <a href="{% url 'dashboard' %}">Home</a>
+                    {% block breadcrumb %}{% endblock %}
+                </div>
             </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+            <div class="top-bar-right">
+                <div class="problem-badge">&#128176; $1T+ Lost to Bad Data</div>
+            </div>
+        </header>
 
-        {% block content %}{% endblock %}
+        <div class="container">
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="message {{ message.tags }}">
+                    {% if message.tags == 'success' %}&#9989;{% else %}&#10060;{% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
     </div>
 
+    <script src="{% static 'js/main.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

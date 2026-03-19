@@ -2,137 +2,165 @@
 
 {% block title %}{{ source.name }} - Trust Control Center{% endblock %}
 
+{% block breadcrumb %}
+<span class="separator">/</span>
+<a href="{% url 'data_sources' %}">Data Sources</a>
+<span class="separator">/</span>
+<span class="current">{{ source.name }}</span>
+{% endblock %}
+
 {% block content %}
 <!-- Source Header -->
 <div class="card">
     <div class="card-header">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <div class="system-icon {% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}" style="width: 56px; height: 56px; font-size: 1.75rem;">
-                {% if source.source_type == 'snowflake' %}❄️
-                {% elif source.source_type == 'tableau' %}📊
-                {% elif source.source_type == 'database' %}🗃️
-                {% elif source.source_type == 'api' %}🔌
-                {% else %}📁{% endif %}
+        <div class="d-flex align-center gap-2">
+            <div class="system-icon {% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}" style="width: 52px; height: 52px; font-size: 1.5rem;">
+                {% if source.source_type == 'snowflake' %}&#10052;&#65039;
+                {% elif source.source_type == 'tableau' %}&#128202;
+                {% elif source.source_type == 'database' %}&#128451;
+                {% elif source.source_type == 'api' %}&#128268;
+                {% else %}&#128193;{% endif %}
             </div>
             <div>
                 <h2 style="margin-bottom: 0.25rem;">{{ source.name }}</h2>
-                <p style="color: var(--gray-400);">{{ source.description|default:"No description" }}</p>
-                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                <p class="text-muted">{{ source.description|default:"No description" }}</p>
+                <div class="d-flex gap-1 mt-1">
                     <span class="badge badge-{% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}">{{ source.get_source_type_display }}</span>
                     {% if source.is_active %}
-                    <span class="badge badge-success">● Active</span>
+                    <span class="badge badge-success">&#9679; Active</span>
                     {% else %}
-                    <span class="badge badge-danger">○ Inactive</span>
+                    <span class="badge badge-danger">&#9675; Inactive</span>
                     {% endif %}
                 </div>
             </div>
         </div>
-        <div style="display: flex; gap: 0.75rem;">
-            <a href="{% url 'validate_data' source.pk %}" class="btn">✅ Run Validation</a>
-            <a href="{% url 'calculate_trust' source.pk %}" class="btn btn-secondary">🎯 Calculate Trust</a>
+        <div class="d-flex gap-1">
+            <a href="{% url 'validate_data' source.pk %}" class="btn btn-success">&#9989; Run Validation</a>
+            <a href="{% url 'calculate_trust' source.pk %}" class="btn">&#127919; Calculate Trust</a>
         </div>
     </div>
 </div>
 
 <!-- Latest Scores Summary -->
-<div class="stats-grid" style="margin-top: 1.5rem;">
-    <div class="stat-card {% if trust_scores.0.overall_score >= 75 %}success{% elif trust_scores.0.overall_score >= 50 %}warning{% else %}{% endif %}">
-        <div class="icon">🎯</div>
+<div class="stats-grid">
+    <div class="stat-card {% if trust_scores.0.overall_score >= 75 %}success{% elif trust_scores.0.overall_score >= 50 %}warning{% endif %}">
+        <div class="icon">&#127919;</div>
         <div class="label">Latest Trust Score</div>
         {% if trust_scores %}
         <div class="value">{{ trust_scores.0.overall_score|floatformat:0 }}%</div>
         <span class="badge badge-{{ trust_scores.0.trust_level }}">{{ trust_scores.0.trust_level }}</span>
         {% else %}
-        <div class="value" style="color: var(--gray-400);">--</div>
+        <div class="value text-muted">--</div>
         <div class="subtitle">No data yet</div>
         {% endif %}
     </div>
 
-    <div class="stat-card {% if validations.0.passed %}success{% else %}{% endif %}">
-        <div class="icon">✅</div>
+    <div class="stat-card {% if validations.0.passed %}success{% endif %}">
+        <div class="icon">&#9989;</div>
         <div class="label">Latest Quality Score</div>
         {% if validations %}
         <div class="value">{{ validations.0.quality_score|floatformat:0 }}%</div>
         {% if validations.0.passed %}
-        <span class="badge badge-success">✓ Passed</span>
+        <span class="badge badge-success">&#10003; Passed</span>
         {% else %}
-        <span class="badge badge-danger">✗ Failed</span>
+        <span class="badge badge-danger">&#10007; Failed</span>
         {% endif %}
         {% else %}
-        <div class="value" style="color: var(--gray-400);">--</div>
+        <div class="value text-muted">--</div>
         <div class="subtitle">No data yet</div>
         {% endif %}
     </div>
 
     <div class="stat-card">
-        <div class="icon">📊</div>
+        <div class="icon">&#128202;</div>
         <div class="label">AI/ML Readiness</div>
         {% if trust_scores.0.overall_score >= 75 %}
-        <div class="value" style="font-size: 1.5rem; color: var(--success);">Ready</div>
+        <div class="value text-lg text-success">Ready</div>
         <div class="subtitle">Data is suitable for AI models</div>
         {% elif trust_scores.0.overall_score >= 50 %}
-        <div class="value" style="font-size: 1.5rem; color: var(--warning);">Review</div>
+        <div class="value text-lg text-warning">Review</div>
         <div class="subtitle">Some issues need attention</div>
         {% elif trust_scores %}
-        <div class="value" style="font-size: 1.5rem; color: var(--danger);">Not Ready</div>
+        <div class="value text-lg text-danger">Not Ready</div>
         <div class="subtitle">Significant remediation needed</div>
         {% else %}
-        <div class="value" style="font-size: 1.5rem; color: var(--gray-400);">Unknown</div>
+        <div class="value text-muted">Unknown</div>
         <div class="subtitle">Calculate trust score first</div>
         {% endif %}
     </div>
 </div>
 
-<!-- Trust Dimensions (if available) -->
 {% if trust_scores %}
+<!-- Dimension Radar Chart + Dimension Cards -->
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header">
+            <h2>&#128202; Dimension Radar</h2>
+        </div>
+        <div class="chart-container">
+            <canvas id="dimensionRadar"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>&#128200; Trust Score Dimensions</h2>
+            <span class="text-muted text-sm">Latest: {{ trust_scores.0.calculated_at|timesince }} ago</span>
+        </div>
+        <div class="dimension-grid">
+            <div class="dimension-item">
+                <div class="name">&#128203; Completeness</div>
+                <div class="score">{{ trust_scores.0.completeness_score|floatformat:0 }}%</div>
+                <div class="score-bar mt-1">
+                    <div class="score-bar-fill {% if trust_scores.0.completeness_score >= 75 %}high{% elif trust_scores.0.completeness_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.completeness_score }}%"></div>
+                </div>
+            </div>
+            <div class="dimension-item">
+                <div class="name">&#127919; Accuracy</div>
+                <div class="score">{{ trust_scores.0.accuracy_score|floatformat:0 }}%</div>
+                <div class="score-bar mt-1">
+                    <div class="score-bar-fill {% if trust_scores.0.accuracy_score >= 75 %}high{% elif trust_scores.0.accuracy_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.accuracy_score }}%"></div>
+                </div>
+            </div>
+            <div class="dimension-item">
+                <div class="name">&#128279; Consistency</div>
+                <div class="score">{{ trust_scores.0.consistency_score|floatformat:0 }}%</div>
+                <div class="score-bar mt-1">
+                    <div class="score-bar-fill {% if trust_scores.0.consistency_score >= 75 %}high{% elif trust_scores.0.consistency_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.consistency_score }}%"></div>
+                </div>
+            </div>
+            <div class="dimension-item">
+                <div class="name">&#9200; Timeliness</div>
+                <div class="score">{{ trust_scores.0.timeliness_score|floatformat:0 }}%</div>
+                <div class="score-bar mt-1">
+                    <div class="score-bar-fill {% if trust_scores.0.timeliness_score >= 75 %}high{% elif trust_scores.0.timeliness_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.timeliness_score }}%"></div>
+                </div>
+            </div>
+            <div class="dimension-item">
+                <div class="name">&#9989; Validity</div>
+                <div class="score">{{ trust_scores.0.validity_score|floatformat:0 }}%</div>
+                <div class="score-bar mt-1">
+                    <div class="score-bar-fill {% if trust_scores.0.validity_score >= 75 %}high{% elif trust_scores.0.validity_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.validity_score }}%"></div>
+                </div>
+            </div>
+            <div class="dimension-item">
+                <div class="name">&#128290; Uniqueness</div>
+                <div class="score">{{ trust_scores.0.uniqueness_score|floatformat:0 }}%</div>
+                <div class="score-bar mt-1">
+                    <div class="score-bar-fill {% if trust_scores.0.uniqueness_score >= 75 %}high{% elif trust_scores.0.uniqueness_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.uniqueness_score }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Score Trend Chart -->
 <div class="card">
     <div class="card-header">
-        <h2>📈 Trust Score Dimensions</h2>
-        <span style="color: var(--gray-400); font-size: 0.875rem;">Latest: {{ trust_scores.0.calculated_at|timesince }} ago</span>
+        <h2>&#128200; Score History Trend</h2>
     </div>
-    <div class="dimension-grid">
-        <div class="dimension-item">
-            <div class="name">📋 Completeness</div>
-            <div class="score">{{ trust_scores.0.completeness_score|floatformat:0 }}%</div>
-            <div class="score-bar" style="margin-top: 0.5rem;">
-                <div class="score-bar-fill {% if trust_scores.0.completeness_score >= 75 %}high{% elif trust_scores.0.completeness_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.completeness_score }}%"></div>
-            </div>
-        </div>
-        <div class="dimension-item">
-            <div class="name">🎯 Accuracy</div>
-            <div class="score">{{ trust_scores.0.accuracy_score|floatformat:0 }}%</div>
-            <div class="score-bar" style="margin-top: 0.5rem;">
-                <div class="score-bar-fill {% if trust_scores.0.accuracy_score >= 75 %}high{% elif trust_scores.0.accuracy_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.accuracy_score }}%"></div>
-            </div>
-        </div>
-        <div class="dimension-item">
-            <div class="name">🔗 Consistency</div>
-            <div class="score">{{ trust_scores.0.consistency_score|floatformat:0 }}%</div>
-            <div class="score-bar" style="margin-top: 0.5rem;">
-                <div class="score-bar-fill {% if trust_scores.0.consistency_score >= 75 %}high{% elif trust_scores.0.consistency_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.consistency_score }}%"></div>
-            </div>
-        </div>
-        <div class="dimension-item">
-            <div class="name">⏰ Timeliness</div>
-            <div class="score">{{ trust_scores.0.timeliness_score|floatformat:0 }}%</div>
-            <div class="score-bar" style="margin-top: 0.5rem;">
-                <div class="score-bar-fill {% if trust_scores.0.timeliness_score >= 75 %}high{% elif trust_scores.0.timeliness_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.timeliness_score }}%"></div>
-            </div>
-        </div>
-        <div class="dimension-item">
-            <div class="name">✅ Validity</div>
-            <div class="score">{{ trust_scores.0.validity_score|floatformat:0 }}%</div>
-            <div class="score-bar" style="margin-top: 0.5rem;">
-                <div class="score-bar-fill {% if trust_scores.0.validity_score >= 75 %}high{% elif trust_scores.0.validity_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.validity_score }}%"></div>
-            </div>
-        </div>
-        <div class="dimension-item">
-            <div class="name">🔢 Uniqueness</div>
-            <div class="score">{{ trust_scores.0.uniqueness_score|floatformat:0 }}%</div>
-            <div class="score-bar" style="margin-top: 0.5rem;">
-                <div class="score-bar-fill {% if trust_scores.0.uniqueness_score >= 75 %}high{% elif trust_scores.0.uniqueness_score >= 50 %}medium{% else %}low{% endif %}" style="width: {{ trust_scores.0.uniqueness_score }}%"></div>
-            </div>
-        </div>
+    <div class="chart-container">
+        <canvas id="scoreTrendChart"></canvas>
     </div>
 </div>
 {% endif %}
@@ -141,87 +169,187 @@
 <div class="grid-2">
     <div class="card">
         <div class="card-header">
-            <h2>🎯 Trust Score History</h2>
+            <h2>&#127919; Trust Score History</h2>
         </div>
         {% if trust_scores %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Score</th>
-                    <th>Level</th>
-                    <th>Dimensions</th>
-                    <th>Time</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for score in trust_scores %}
-                <tr>
-                    <td><strong style="color: white; font-size: 1.1rem;">{{ score.overall_score|floatformat:0 }}%</strong></td>
-                    <td><span class="badge badge-{{ score.trust_level }}">{{ score.trust_level }}</span></td>
-                    <td style="font-size: 0.75rem; color: var(--gray-400);">
-                        C:{{ score.completeness_score|floatformat:0 }}
-                        A:{{ score.accuracy_score|floatformat:0 }}
-                        Co:{{ score.consistency_score|floatformat:0 }}
-                    </td>
-                    <td style="color: var(--gray-400); font-size: 0.875rem;">{{ score.calculated_at|timesince }} ago</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table data-sortable>
+                <thead>
+                    <tr>
+                        <th data-sort>Score</th>
+                        <th data-sort>Level</th>
+                        <th>Dimensions</th>
+                        <th data-sort>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for score in trust_scores %}
+                    <tr>
+                        <td><strong class="text-white text-lg">{{ score.overall_score|floatformat:0 }}%</strong></td>
+                        <td><span class="badge badge-{{ score.trust_level }}">{{ score.trust_level }}</span></td>
+                        <td class="text-xs text-muted">
+                            C:{{ score.completeness_score|floatformat:0 }}
+                            A:{{ score.accuracy_score|floatformat:0 }}
+                            Co:{{ score.consistency_score|floatformat:0 }}
+                        </td>
+                        <td class="text-muted text-sm">{{ score.calculated_at|timesince }} ago</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
         <div class="empty-state">
-            <div class="icon">🎯</div>
-            <p>No trust scores yet.</p>
-            <a href="{% url 'calculate_trust' source.pk %}" class="btn" style="margin-top: 1rem;">Calculate First Score</a>
+            <div class="empty-icon">&#127919;</div>
+            <h3>No trust scores yet</h3>
+            <a href="{% url 'calculate_trust' source.pk %}" class="btn mt-2">Calculate First Score</a>
         </div>
         {% endif %}
     </div>
 
     <div class="card">
         <div class="card-header">
-            <h2>✅ Validation History</h2>
+            <h2>&#9989; Validation History</h2>
         </div>
         {% if validations %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Score</th>
-                    <th>Status</th>
-                    <th>Rules</th>
-                    <th>Time</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for validation in validations %}
-                <tr>
-                    <td><strong style="color: white; font-size: 1.1rem;">{{ validation.quality_score|floatformat:0 }}%</strong></td>
-                    <td>
-                        {% if validation.passed %}
-                        <span class="badge badge-success">✓ Passed</span>
-                        {% else %}
-                        <span class="badge badge-danger">✗ Failed</span>
-                        {% endif %}
-                    </td>
-                    <td style="font-size: 0.875rem; color: var(--gray-400);">
-                        {{ validation.passed_rules }}/{{ validation.total_rules }} rules
-                    </td>
-                    <td style="color: var(--gray-400); font-size: 0.875rem;">{{ validation.timestamp|timesince }} ago</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table data-sortable>
+                <thead>
+                    <tr>
+                        <th data-sort>Score</th>
+                        <th data-sort>Status</th>
+                        <th data-sort>Rules</th>
+                        <th data-sort>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for validation in validations %}
+                    <tr>
+                        <td><strong class="text-white text-lg">{{ validation.quality_score|floatformat:0 }}%</strong></td>
+                        <td>
+                            {% if validation.passed %}
+                            <span class="badge badge-success">&#10003; Passed</span>
+                            {% else %}
+                            <span class="badge badge-danger">&#10007; Failed</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-sm text-muted">
+                            {{ validation.passed_rules }}/{{ validation.total_rules }} rules
+                        </td>
+                        <td class="text-muted text-sm">{{ validation.timestamp|timesince }} ago</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
         <div class="empty-state">
-            <div class="icon">✅</div>
-            <p>No validations yet.</p>
-            <a href="{% url 'validate_data' source.pk %}" class="btn" style="margin-top: 1rem;">Run First Validation</a>
+            <div class="empty-icon">&#9989;</div>
+            <h3>No validations yet</h3>
+            <a href="{% url 'validate_data' source.pk %}" class="btn mt-2">Run First Validation</a>
         </div>
         {% endif %}
     </div>
 </div>
 
 <!-- Back Button -->
-<div style="text-align: center; margin-top: 2rem;">
-    <a href="{% url 'data_sources' %}" class="btn btn-secondary">← Back to All Sources</a>
+<div class="text-center mt-3">
+    <a href="{% url 'data_sources' %}" class="btn btn-secondary">&#8592; Back to All Sources</a>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if trust_scores %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+
+    Chart.defaults.color = textColor;
+    Chart.defaults.font.family = 'Inter, sans-serif';
+
+    // Dimension Radar Chart
+    const radarCtx = document.getElementById('dimensionRadar');
+    if (radarCtx) {
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Completeness', 'Accuracy', 'Consistency', 'Timeliness', 'Validity', 'Uniqueness'],
+                datasets: [{
+                    label: 'Trust Dimensions',
+                    data: [
+                        {{ trust_scores.0.completeness_score|floatformat:1 }},
+                        {{ trust_scores.0.accuracy_score|floatformat:1 }},
+                        {{ trust_scores.0.consistency_score|floatformat:1 }},
+                        {{ trust_scores.0.timeliness_score|floatformat:1 }},
+                        {{ trust_scores.0.validity_score|floatformat:1 }},
+                        {{ trust_scores.0.uniqueness_score|floatformat:1 }}
+                    ],
+                    backgroundColor: 'rgba(99,102,241,0.15)',
+                    borderColor: '#6366f1',
+                    pointBackgroundColor: '#6366f1',
+                    pointBorderColor: '#fff',
+                    pointRadius: 4,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    r: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        angleLines: { color: gridColor },
+                        pointLabels: { font: { size: 11 } },
+                        ticks: { stepSize: 25, backdropColor: 'transparent' }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // Score Trend Line Chart
+    const trendCtx = document.getElementById('scoreTrendChart');
+    if (trendCtx) {
+        const scores = [{% for s in trust_scores %}{{ s.overall_score|floatformat:1 }}{% if not forloop.last %}, {% endif %}{% endfor %}].reverse();
+        const labels = [{% for s in trust_scores %}'{{ s.calculated_at|timesince }}'{% if not forloop.last %}, {% endif %}{% endfor %}].reverse();
+
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Trust Score',
+                    data: scores,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99,102,241,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#6366f1',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { callback: function(v) { return v + '%'; } } },
+                    x: { grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(ctx) { return 'Score: ' + ctx.parsed.y + '%'; } } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endif %}
 {% endblock %}
