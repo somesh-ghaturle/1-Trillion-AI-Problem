@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Calculate Trust Score - {{ source.name }}{% endblock %}
+
+{% block content %}
+<!-- Source Info -->
+<div class="card">
+    <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="system-icon {% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                {% if source.source_type == 'snowflake' %}❄️
+                {% elif source.source_type == 'tableau' %}📊
+                {% else %}🗃️{% endif %}
+            </div>
+            <div>
+                <h2>🎯 Calculate Trust Score</h2>
+                <p style="color: var(--gray-400);">{{ source.name }}</p>
+            </div>
+        </div>
+        <a href="{% url 'data_source_detail' source.pk %}" class="btn btn-secondary">← Back</a>
+    </div>
+</div>
+
+<!-- Upload Form -->
+<div class="card">
+    <h3 style="margin-bottom: 1rem;">📤 Upload CSV Data</h3>
+    <p style="color: var(--gray-400); margin-bottom: 1.5rem;">
+        Upload a CSV file to calculate a comprehensive trust score across 6 dimensions.
+        This determines if your data is ready for AI/ML models.
+    </p>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="csv_file">CSV File</label>
+            <input type="file" id="csv_file" name="csv_file" accept=".csv" required
+                   style="padding: 1rem; border: 2px dashed rgba(255,255,255,0.2); background: rgba(255,255,255,0.02);">
+        </div>
+        <button type="submit" class="btn" style="width: 100%;">
+            🎯 Calculate Trust Score
+        </button>
+    </form>
+</div>
+
+<!-- Trust Dimensions -->
+<div class="card">
+    <h3>📊 Trust Score Dimensions</h3>
+    <p style="color: var(--gray-400); margin-bottom: 1.5rem;">
+        Your data will be scored across these 6 dimensions of trustworthiness:
+    </p>
+    <div class="dimension-grid">
+        <div class="dimension-item">
+            <div class="name">📋 Completeness (20%)</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Data availability and missing values</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">🎯 Accuracy (25%)</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Correctness against known patterns</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">🔗 Consistency (25%)</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Uniformity and cross-system matching</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">⏰ Timeliness (15%)</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Data recency and freshness</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">✅ Validity (10%)</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Business rule compliance</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">🔢 Uniqueness (5%)</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Duplicate record detection</p>
+        </div>
+    </div>
+</div>
+
+<!-- Trust Levels -->
+<div class="card" style="background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(139,92,246,0.1) 100%); border-color: rgba(99,102,241,0.3);">
+    <h3>🏆 Trust Levels</h3>
+    <p style="color: var(--gray-400); margin-bottom: 1.5rem;">
+        Your overall score determines the trust level and AI/ML readiness:
+    </p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+        <div style="text-align: center; padding: 1rem; background: rgba(16,185,129,0.1); border-radius: 8px;">
+            <span class="badge badge-verified" style="font-size: 0.8rem;">Verified</span>
+            <div style="font-weight: 600; color: white; margin-top: 0.5rem;">90-100%</div>
+            <div style="font-size: 0.75rem; color: var(--gray-400);">Ready for production AI</div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: rgba(99,102,241,0.1); border-radius: 8px;">
+            <span class="badge badge-high" style="font-size: 0.8rem;">High</span>
+            <div style="font-weight: 600; color: white; margin-top: 0.5rem;">75-89%</div>
+            <div style="font-size: 0.75rem; color: var(--gray-400);">Suitable for most AI</div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: rgba(245,158,11,0.1); border-radius: 8px;">
+            <span class="badge badge-medium" style="font-size: 0.8rem;">Medium</span>
+            <div style="font-weight: 600; color: white; margin-top: 0.5rem;">60-74%</div>
+            <div style="font-size: 0.75rem; color: var(--gray-400);">Needs improvement</div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: rgba(249,115,22,0.1); border-radius: 8px;">
+            <span class="badge badge-low" style="font-size: 0.8rem;">Low</span>
+            <div style="font-weight: 600; color: white; margin-top: 0.5rem;">40-59%</div>
+            <div style="font-size: 0.75rem; color: var(--gray-400);">Caution advised</div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: rgba(239,68,68,0.1); border-radius: 8px;">
+            <span class="badge badge-untrusted" style="font-size: 0.8rem;">Untrusted</span>
+            <div style="font-weight: 600; color: white; margin-top: 0.5rem;">0-39%</div>
+            <div style="font-size: 0.75rem; color: var(--gray-400);">Not ready for AI</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

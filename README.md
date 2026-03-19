@@ -1,242 +1,86 @@
-# Solving the $1 Trillion AI Problem
+# Trust Control Center (1-Trillion-AI-Problem)
 
-## Overview
+Lightweight Django app to assess and improve dataset trustworthiness for AI/ML pipelines. It provides data quality validation, governance primitives, and a multi-dimensional trust scoring engine.
 
-The **$1 trillion AI problem** refers to the massive economic impact of poor data quality and inconsistency across enterprise systems. When AI models are trained on inconsistent data from multiple sources (like Snowflake, Tableau, and other enterprise systems), they produce unreliable predictions and destroy trust in AI-generated insights.
+## Summary
 
-This repository provides a comprehensive solution to address data quality, governance, and trust scoring challenges that undermine AI reliability.
+- Web dashboard to upload datasets, run validations and compute trust scores.
+- Tools to define governance metrics and reconcile cross-system inconsistencies.
+- Management commands and small utilities to run demos, export governance, and calculate trust in batch.
 
-## The Problem
-
-Organizations often have data spread across multiple systems that:
-- Use different definitions for the same metrics
-- Have conflicting values for the same entities
-- Lack standardized data governance
-- Create "data silos" that don't communicate effectively
-
-**Impact**: Industry analysts estimate this costs businesses over **$1 trillion annually** through wasted AI/ML resources, poor decisions, and lost trust in AI systems.
-
-## The Solution
-
-This framework provides:
-
-1. **Data Quality Validation** - Automated validation across multiple dimensions
-2. **Data Governance** - Standardized metrics and policies
-3. **Trust Scoring Engine** - Quantify data reliability for AI consumption
-4. **Cross-System Consistency** - Ensure data matches across enterprise systems
-
-## Features
-
-### 🚀 **NEW: Trust Control Center UI**
-The **Trust Control Center** is a Next.js dashboard that visualizes global data health and empowers semantic governance.
-
-**Key Capabilities**:
-- **Global Health Map**: Network graph of your enterprise data estate.
-- **Trust Score Cards**: Real-time reliability scores for Snowflake, Tableau, etc.
-- **Semantic Layer Simulator**: Interactive demo showing how "One Logic" fixes data inconsistencies.
-
-![Trust Control Center](dashboard/public/dashboard-preview.png)
-
-### 🔍 Data Quality Validation (`data_quality_validator.py`)
-- **Completeness checks** - Validate required fields and null values
-- **Uniqueness validation** - Detect duplicate records
-- **Value range checks** - Ensure data is within expected bounds
-- **Data type validation** - Verify correct data types
-- **Cross-system consistency** - Compare data across Snowflake, Tableau, etc.
-- **Quality scoring** - Overall quality score (0-100)
-
-### 🛡️ Data Governance (`data_governance.py`)
-- **Centralized data dictionary** - Single source of truth for metrics
-- **Metric definitions** - Standardized calculations across systems
-- **Data lineage tracking** - Understand data flow and transformations
-- **Policy enforcement** - Automated governance rules
-- **Asset management** - Track and manage data assets
-
-### ⭐ Trust Scoring Engine (`trust_scoring.py`)
-- **Multi-dimensional scoring** - Completeness, accuracy, consistency, timeliness, validity, uniqueness
-- **Trust levels** - Verified, High, Medium, Low, Untrusted
-- **AI/ML readiness** - Determine if data is suitable for model training
-- **Historical tracking** - Monitor trust scores over time
-- **Confidence metrics** - Quantify data reliability
-
-## Installation
+## Quick Install
 
 ```bash
-# Clone the repository
 git clone https://github.com/somesh-ghaturle/1-Trillion-AI-Problem.git
 cd 1-Trillion-AI-Problem
-
-# Install dependencies
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
 ```
 
-## Quick Start
+Open http://localhost:8000/ for the dashboard and http://localhost:8000/admin/ for the Django admin.
 
-### Run the Complete Example
+## Important files & commands
+
+- `manage.py` — standard Django entrypoint.
+- `generate_dashboard_data.py` — local helper to populate demo/dashboard data.
+- `core/utils/` — implementation of data quality, governance and trust scoring logic:
+  - `data_quality_validator.py`
+  - `trust_scoring.py`
+  - `data_governance.py`
+- Management commands (in `core/management/commands`):
+  - `calc_trust.py` — calculate trust scores for sources in batch
+  - `validate_data.py` — run data validation for a source or CSV
+  - `export_governance.py` — export governance metrics
+  - `run_demo.py` — populate demo data and run example flows
+
+Usage examples:
 
 ```bash
-python example_usage.py
+# Run validation on a CSV (interactive/upload endpoint also available in UI)
+python manage.py validate_data --file path/to/data.csv --source "my-source"
+
+# Calculate trust scores for all sources
+python manage.py calc_trust
+
+# Populate demo data for the dashboard
+python manage.py run_demo
+
+# Generate dashboard/demo data script
+python generate_dashboard_data.py
 ```
 
-This will run through all four examples:
-1. Data Quality Validation
-2. Data Governance Framework
-3. Trust Scoring Engine
-4. Integrated Solution
+## Tests
 
-### Run the Trust Control Center (UI)
+Run the test suite with:
 
 ```bash
-cd dashboard
-npm install
-npm run dev
-# Open http://localhost:3000
+python -m pytest -q
 ```
 
-### Basic Usage
-
-```python
-from data_quality_validator import DataQualityValidator
-from trust_scoring import TrustScoringEngine
-import pandas as pd
-
-# Load your data
-df = pd.read_csv('your_data.csv')
-
-# Validate data quality
-validator = DataQualityValidator()
-config = {
-    'required_columns': ['customer_id', 'revenue'],
-    'key_columns': ['customer_id'],
-    'value_ranges': {'revenue': (0, 1000000)}
-}
-results, quality_score = validator.run_validation_suite(df, config)
-print(f"Quality Score: {quality_score}/100")
-
-# Calculate trust score
-trust_engine = TrustScoringEngine()
-trust_score = trust_engine.calculate_trust_score(df)
-print(f"Trust Score: {trust_score.overall_score}/100")
-print(f"Trust Level: {trust_score.trust_level.value}")
-```
-
-### Cross-System Consistency Check
-
-```python
-# Compare data from Snowflake and Tableau
-consistency = validator.validate_cross_system_consistency(
-    snowflake_df,
-    tableau_df,
-    key_column='customer_id',
-    value_columns=['revenue', 'order_count'],
-    tolerance=0.01
-)
-
-if not consistency.passed:
-    print(f"⚠ Inconsistencies found: {consistency.message}")
-```
-
-## Documentation
-
-- **[PROBLEM_ANALYSIS.md](PROBLEM_ANALYSIS.md)** - Detailed analysis of the $1T AI problem
-- **[SOLUTION_ARCHITECTURE.md](SOLUTION_ARCHITECTURE.md)** - Architecture and design
-- **[example_usage.py](example_usage.py)** - Comprehensive examples
-
-## Key Benefits
-
-- ✅ **Improved AI Reliability** - Up to 90% reduction in prediction errors
-- 💰 **Cost Savings** - Reduce wasted AI/ML resources by 70%
-- 🤝 **Trust Building** - Increase stakeholder confidence in AI insights
-- ⚡ **Faster Deployment** - Reduce time to production for AI models
-- 📋 **Compliance** - Better audit trails and data governance
-
-## Use Cases
-
-### 1. AI Model Training
-Validate data quality before training ML models to ensure reliable predictions.
-
-### 2. Cross-System Data Reconciliation
-Compare data from Snowflake, Tableau, and other systems to identify inconsistencies.
-
-### 3. Data Governance
-Establish standardized metric definitions and enforce data quality policies.
-
-### 4. AI/ML Readiness Assessment
-Determine if datasets are suitable for AI consumption based on trust scores.
-
-## Architecture
+## Project structure (short)
 
 ```
-Data Sources (Snowflake, Tableau, Databases)
-           ↓
-Integration & Collection Layer
-           ↓
-Data Quality Validation Engine
-           ↓
-Data Governance Layer
-           ↓
-Trust Scoring Engine
-           ↓
-AI/ML Consumption Layer
+./
+├─ trustsite/                # Django project settings
+├─ core/                     # Main app (models, views, management commands)
+│  └─ utils/                 # data_quality_validator, trust_scoring, data_governance
+├─ templates/                # UI templates
+├─ manage.py
+└─ requirements.txt
 ```
-
-## Flow Diagram
-
-Below is a high-level flow diagram (Mermaid) showing the components and data flow for the solution.
-
-```mermaid
-flowchart LR
-A["Data Sources<br/>(Snowflake, Tableau, DBs, APIs)"] --> B["Integration & Collection Layer<br/>(Connectors, ETL, Sync)"]
-B --> C["Data Quality Validation Engine<br/>(Checks, Reconciliation, Anomaly Detection)"]
-C --> D["Data Governance Layer<br/>(Metadata, Policies, Lineage)"]
-C --> E["Monitoring & Analytics<br/>(Dashboards, Alerts)"]
-D --> F["Trust Scoring Engine<br/>(Multi-dim Scores, History)"]
-E --> F
-F --> G["AI/ML Consumption<br/>(Model Training, Predictions)"]
-
-subgraph Control
-H["Trust Control Center UI<br/>(Health Map, Trust Cards, Simulator)"]
-H -->|server control & metrics| E
-H -->|semantic toggle| C
-end
-
-style A fill:#f9f,stroke:#333,stroke-width:1px
-style G fill:#bfb,stroke:#333,stroke-width:1px
-```
-
-## Companies Affected
-
-This solution addresses challenges faced by major enterprises including:
-- **Snowflake** - Data warehousing platform dealing with multi-cloud consistency
-- **Tableau** - BI tool facing visualization accuracy issues
-- **BlackRock** - Financial firm requiring reliable data for AI-driven investments
-- And many more enterprise organizations
-
-## Success Metrics
-
-- **Data Quality Score**: Target >95%
-- **Cross-System Consistency**: Target >98%
-- **AI Model Accuracy**: Improve by 30-50%
-- **Time to Detection**: <5 minutes for quality issues
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is open source and available under the MIT License.
-
-## References
-
-- [VentureBeat Article: The $1 trillion AI problem](https://venturebeat.com/ai/the-usd1-trillion-ai-problem-why-snowflake-tableau-and-blackrock-are-giving)
-- Industry research on data quality costs
-- Enterprise AI deployment challenges
+PRs welcome. For changes to scoring logic or governance rules, include unit tests in `core/tests`.
 
 ## Contact
 
-For questions or support, please open an issue on GitHub.
+Open an issue in the repository for questions, feature requests or bugs.
 
 ---
 
-**Built to solve the $1 trillion AI problem - ensuring reliable AI through trustworthy data.**
+If you'd like, I can further tailor this README (add screenshots, CI steps, Docker Compose, or expand command docs). Let me know which details you'd like added.

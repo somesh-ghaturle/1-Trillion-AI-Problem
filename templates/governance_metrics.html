@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Governance Metrics - Trust Control Center{% endblock %}
+
+{% block content %}
+<!-- Problem Context -->
+<div class="problem-banner">
+    <div class="icon">📋</div>
+    <div class="text">
+        <h3>Data Governance: Single Source of Truth</h3>
+        <p>When "revenue" means different things in Snowflake vs Tableau, AI models fail. Define standardized metrics here to ensure consistency across all systems.</p>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="icon">📊</div>
+        <div class="label">Total Metrics</div>
+        <div class="value">{{ metrics|length }}</div>
+        <div class="subtitle">Standardized definitions</div>
+    </div>
+    <div class="stat-card success">
+        <div class="icon">✅</div>
+        <div class="label">Active Metrics</div>
+        <div class="value">{{ metrics|length }}</div>
+        <div class="subtitle">Enforced across systems</div>
+    </div>
+    <div class="stat-card">
+        <div class="icon">🔗</div>
+        <div class="label">Systems Covered</div>
+        <div class="value">3+</div>
+        <div class="subtitle">Snowflake, Tableau, DBs</div>
+    </div>
+</div>
+
+<!-- Add Metric Form -->
+<div class="card">
+    <div class="card-header">
+        <h2>➕ Define New Metric</h2>
+    </div>
+    <p style="color: var(--gray-400); margin-bottom: 1.5rem;">
+        Create a standardized metric definition that will be enforced across all enterprise systems.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="name">Metric ID</label>
+                <input type="text" id="name" name="name" placeholder="customer_revenue" required>
+                <p style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">Unique identifier (lowercase, underscores)</p>
+            </div>
+            <div class="form-group">
+                <label for="display_name">Display Name</label>
+                <input type="text" id="display_name" name="display_name" placeholder="Customer Revenue" required>
+                <p style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">Human-readable name</p>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="description">Description & Calculation Logic</label>
+            <textarea id="description" name="description" rows="3" placeholder="SUM(transaction_amount) WHERE transaction_type = 'sale' AND status = 'completed'&#10;&#10;This metric represents total revenue from all completed customer transactions."></textarea>
+            <p style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">Include the exact calculation formula and business logic</p>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="data_type">Data Type</label>
+                <select id="data_type" name="data_type">
+                    <option value="numeric">Numeric (Integer/Float)</option>
+                    <option value="string">String (Text)</option>
+                    <option value="boolean">Boolean (True/False)</option>
+                    <option value="date">Date</option>
+                    <option value="datetime">DateTime</option>
+                </select>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button type="submit" class="btn" style="width: 100%;">➕ Add Metric</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Metrics List -->
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Defined Metrics</h2>
+        <span style="color: var(--gray-400); font-size: 0.875rem;">{{ metrics|length }} metrics defined</span>
+    </div>
+
+    {% if metrics %}
+    <table>
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Data Type</th>
+                <th>Description</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for metric in metrics %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div class="system-icon database" style="width: 40px; height: 40px;">📊</div>
+                        <div>
+                            <code style="background: rgba(99,102,241,0.2); color: var(--primary); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">{{ metric.name }}</code>
+                            <div style="font-weight: 600; color: white; margin-top: 0.25rem;">{{ metric.display_name }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge badge-high">{{ metric.data_type }}</span>
+                </td>
+                <td style="max-width: 350px; color: var(--gray-400); font-size: 0.875rem;">
+                    {{ metric.description|truncatewords:20|default:"No description" }}
+                </td>
+                <td>
+                    {% if metric.is_active %}
+                    <span class="badge badge-success">● Active</span>
+                    {% else %}
+                    <span class="badge badge-danger">○ Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">📋</div>
+        <p>No governance metrics defined yet.</p>
+        <p style="font-size: 0.875rem; margin-top: 0.5rem;">Add your first metric using the form above to establish data consistency.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Why Governance Matters -->
+<div class="card" style="background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(139,92,246,0.1) 100%); border-color: rgba(99,102,241,0.3);">
+    <h3>🎯 Why Data Governance Matters</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+        <div>
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">❄️ → 📊</div>
+            <div style="font-weight: 600; color: white;">Cross-System Consistency</div>
+            <p style="color: var(--gray-400); font-size: 0.875rem; margin-top: 0.25rem;">Ensure Snowflake and Tableau calculate "revenue" the same way</p>
+        </div>
+        <div>
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🤖</div>
+            <div style="font-weight: 600; color: white;">AI/ML Reliability</div>
+            <p style="color: var(--gray-400); font-size: 0.875rem; margin-top: 0.25rem;">Models trained on consistent data produce trustworthy predictions</p>
+        </div>
+        <div>
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">💰</div>
+            <div style="font-weight: 600; color: white;">Cost Reduction</div>
+            <p style="color: var(--gray-400); font-size: 0.875rem; margin-top: 0.25rem;">Eliminate wasted resources from conflicting metrics</p>
+        </div>
+        <div>
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🤝</div>
+            <div style="font-weight: 600; color: white;">Stakeholder Trust</div>
+            <p style="color: var(--gray-400); font-size: 0.875rem; margin-top: 0.25rem;">Everyone agrees on what the numbers mean</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

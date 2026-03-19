@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Validate Data - {{ source.name }}{% endblock %}
+
+{% block content %}
+<!-- Source Info -->
+<div class="card">
+    <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="system-icon {% if source.source_type == 'snowflake' %}snowflake{% elif source.source_type == 'tableau' %}tableau{% else %}database{% endif %}" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                {% if source.source_type == 'snowflake' %}❄️
+                {% elif source.source_type == 'tableau' %}📊
+                {% else %}🗃️{% endif %}
+            </div>
+            <div>
+                <h2>✅ Validate Data Quality</h2>
+                <p style="color: var(--gray-400);">{{ source.name }}</p>
+            </div>
+        </div>
+        <a href="{% url 'data_source_detail' source.pk %}" class="btn btn-secondary">← Back</a>
+    </div>
+</div>
+
+<!-- Upload Form -->
+<div class="card">
+    <h3 style="margin-bottom: 1rem;">📤 Upload CSV Data</h3>
+    <p style="color: var(--gray-400); margin-bottom: 1.5rem;">
+        Upload a CSV file to run comprehensive data quality validation checks.
+    </p>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="csv_file">CSV File</label>
+            <input type="file" id="csv_file" name="csv_file" accept=".csv" required
+                   style="padding: 1rem; border: 2px dashed rgba(255,255,255,0.2); background: rgba(255,255,255,0.02);">
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%;">
+            ✅ Run Validation
+        </button>
+    </form>
+</div>
+
+<!-- What Gets Validated -->
+<div class="card">
+    <h3>🔍 What Gets Validated?</h3>
+    <p style="color: var(--gray-400); margin-bottom: 1.5rem;">
+        The validation engine checks your data across multiple quality dimensions:
+    </p>
+    <div class="dimension-grid">
+        <div class="dimension-item">
+            <div class="name">📋 Completeness</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Missing values and null fields</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">🔢 Uniqueness</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Duplicate record detection</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">📊 Data Types</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Correct column types</p>
+        </div>
+        <div class="dimension-item">
+            <div class="name">📈 Value Ranges</div>
+            <p style="font-size: 0.8rem; color: var(--gray-400);">Values within bounds</p>
+        </div>
+    </div>
+    <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px;">
+        <strong style="color: var(--success);">✓ Pass Threshold:</strong>
+        <span style="color: var(--gray-400);"> Data passes validation when quality score is ≥ 70%</span>
+    </div>
+</div>
+{% endblock %}

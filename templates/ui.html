@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Trust Control Center - Demo UI</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      .box { border: 1px solid #ddd; padding: 12px; margin-bottom: 12px; }
+      pre { background:#f6f6f6; padding:12px; overflow:auto }
+    </style>
+  </head>
+  <body>
+    <h1>Trust Control Center - Demo UI</h1>
+
+    <div class="box">
+      <h3>Upload CSV or use sample data</h3>
+      <input type="file" id="csvfile" accept=".csv" />
+      <div style="margin-top:8px">
+        <button id="btn-validate">Run Validation</button>
+        <button id="btn-trust">Calculate Trust</button>
+        <button id="btn-governance">Load Governance</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>Result</h3>
+      <pre id="result">No results yet.</pre>
+    </div>
+
+    <script>
+      async function postForm(url) {
+        const fileInput = document.getElementById('csvfile');
+        const fd = new FormData();
+        if (fileInput.files.length) fd.append('csv', fileInput.files[0]);
+
+        const res = await fetch(url, { method: 'POST', body: fd });
+        const data = await res.json();
+        document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+      }
+
+      async function getJson(url) {
+        const res = await fetch(url);
+        const data = await res.json();
+        document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+      }
+
+      document.getElementById('btn-validate').addEventListener('click', () => postForm('/api/validate/'));
+      document.getElementById('btn-trust').addEventListener('click', () => postForm('/api/trust/'));
+      document.getElementById('btn-governance').addEventListener('click', () => getJson('/api/governance/'));
+    </script>
+  </body>
+</html>
