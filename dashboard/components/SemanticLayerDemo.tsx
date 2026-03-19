@@ -1,27 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Database, Layers, CheckCircle2, AlertOctagon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Mock Data
-const RAW_DATA = {
-    snowflake: { revenue: 104502.50, currency: "USD", status: "unverified" },
+type SourceData = {
+    revenue: number;
+    currency: string;
+    status: string;
+};
+
+type RawData = Record<'snowflake' | 'tableau' | 'salesforce', SourceData>;
+
+const RAW_DATA: RawData = {
+    snowflake: { revenue: 104502.5, currency: "USD", status: "unverified" },
     tableau: { revenue: 105000, currency: "USD", status: "estimated" },
     salesforce: { revenue: 104502, currency: "USD", status: "closed_won" }
 };
 
 const SEMANTIC_DATA = {
-    revenue: 104502.50,
+    revenue: 104502.5,
     currency: "USD",
     definition: "SUM(transaction_amount) WHERE status = 'closed_won'",
     source_of_truth: "Snowflake (Verified)"
 };
 
 export function SemanticLayerDemo() {
-    const [isEnabled, setIsEnabled] = useState(false);
+    const [isEnabled, setIsEnabled] = useState<boolean>(() => {
+        try {
+            const v = localStorage.getItem('semanticLayerActive');
+            return v === null ? true : v === 'true';
+        } catch (e) {
+            return true;
+        }
+    });
+
+    // Sync initial client localStorage on mount (guards SSR)
+    useEffect(() => {
+        try {
+            const v = localStorage.getItem('semanticLayerActive');
+            if (v === null) localStorage.setItem('semanticLayerActive', String(isEnabled));
+        } catch (e) {}
+    }, []);
+
+    const toggleLayer = async () => {
+        const next = !isEnabled;
+        setIsEnabled(next);
+        try { localStorage.setItem('semanticLayerActive', String(next)); } catch (e) {}
+        // Try to persist server-side as well (best-effort)
+        try {
+            await fetch('/api/health', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ layerActive: next })
+            });
+        } catch (e) {
+            // ignore network errors
+        }
+    };
 
     return (
         <Card className="col-span-1 md:col-span-2 border-primary/20 bg-gradient-to-br from-card to-secondary/30">
@@ -33,7 +72,7 @@ export function SemanticLayerDemo() {
                     </div>
                     <Button
                         variant={isEnabled ? "default" : "outline"}
-                        onClick={() => setIsEnabled(!isEnabled)}
+                        onClick={toggleLayer}
                         className={cn("w-40 transition-all", isEnabled ? "bg-primary hover:bg-primary/90" : "")}
                     >
                         {isEnabled ? "Layer Active" : "Layer Inactive"}
@@ -46,7 +85,7 @@ export function SemanticLayerDemo() {
                     {/* Left: Improving Entropy */}
                     <div className="space-y-4">
                         <div className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">Data Sources (Silos)</div>
-                        {['snowflake', 'tableau', 'salesforce'].map((source) => (
+                        {(['snowflake', 'tableau', 'salesforce'] as const).map((source) => (
                             <div key={source} className={cn(
                                 "p-3 rounded-lg border text-sm transition-all duration-500",
                                 isEnabled ? "opacity-50 grayscale" : "bg-card shadow-sm"
@@ -56,7 +95,7 @@ export function SemanticLayerDemo() {
                                     <span className="font-semibold capitalize">{source}</span>
                                 </div>
                                 <div className="font-mono text-xs">
-                                    Rev: ${(RAW_DATA as any)[source].revenue.toLocaleString()}
+                                    Rev: ${RAW_DATA[source].revenue.toLocaleString()}
                                 </div>
                                 {!isEnabled && (
                                     <div className="text-[10px] text-red-500 flex items-center gap-1 mt-1">
