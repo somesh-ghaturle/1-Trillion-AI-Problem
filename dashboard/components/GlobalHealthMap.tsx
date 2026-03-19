@@ -2,7 +2,6 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 
 const NODES = [
     { id: 'snowflake', label: 'Snowflake', x: 20, y: 50, type: 'source', status: 'healthy' },
@@ -24,12 +23,12 @@ export function GlobalHealthMap() {
             <CardContent className="h-[350px] relative z-10">
                 <div className="relative w-full h-full">
                     {/* Lines */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                        <path d="M 22% 52% L 48% 52%" className="stroke-primary/20 stroke-2" />
-                        <path d="M 22% 25% L 48% 50%" className="stroke-yellow-500/30 stroke-2 dashed" strokeDasharray="5,5" />
-                        <path d="M 52% 50% L 78% 25%" className="stroke-primary/20 stroke-2" />
-                        <path d="M 52% 50% L 78% 50%" className="stroke-red-500/30 stroke-2 dashed" strokeDasharray="5,5" />
-                        <path d="M 52% 50% L 78% 75%" className="stroke-primary/20 stroke-2" />
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <line x1="22" y1="52" x2="48" y2="52" className="stroke-primary/30" strokeWidth="0.5" />
+                        <line x1="22" y1="25" x2="48" y2="50" className="stroke-yellow-500/40" strokeWidth="0.5" strokeDasharray="2,2" />
+                        <line x1="52" y1="50" x2="78" y2="25" className="stroke-yellow-500/40" strokeWidth="0.5" strokeDasharray="2,2" />
+                        <line x1="52" y1="50" x2="78" y2="50" className="stroke-red-500/40" strokeWidth="0.5" strokeDasharray="2,2" />
+                        <line x1="52" y1="50" x2="78" y2="75" className="stroke-primary/30" strokeWidth="0.5" />
                     </svg>
 
                     {NODES.map((node) => (

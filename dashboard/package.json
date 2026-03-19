@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "test": "vitest --run",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -20,7 +21,8 @@
     "rechart": "^0.0.1",
     "recharts": "^3.6.0",
     "tailwind-animate": "^0.2.10",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "ioredis": "^5.3.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -30,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^1.0.0"
   }
 }
