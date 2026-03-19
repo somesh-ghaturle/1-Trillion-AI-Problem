@@ -75,6 +75,27 @@ npm test
 
 CI workflows should run both the Python tests in the repo root and the dashboard tests/build.
 
+## Flow Diagram
+
+The following Mermaid flowchart illustrates how the dashboard fits into the overall solution and how the Trust Control Center interacts with monitoring, validation, and the trust scoring engine.
+
+```mermaid
+flowchart LR
+	A[Data Sources\n(Snowflake, Tableau, DBs, APIs)] --> B[Integration & Collection Layer\n(Connectors, ETL, Sync)]
+	B --> C[Data Quality Validation Engine\n(Checks, Reconciliation, Anomaly Detection)]
+	C --> D[Data Governance Layer\n(Metadata, Policies, Lineage)]
+	C --> E[Monitoring & Analytics\n(Dashboards, Alerts)]
+	D --> F[Trust Scoring Engine\n(Multi-dim Scores, History)]
+	E --> F
+	F --> G[AI/ML Consumption\n(Model Training, Predictions)]
+
+	subgraph Control
+		H[Trust Control Center UI\n(Health Map, Trust Cards, Simulator)]
+		H -->|server control & metrics| E
+		H -->|semantic toggle| C
+	end
+```
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
