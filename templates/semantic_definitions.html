@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Semantic Definitions - Trust Control Center{% endblock %}
+
+{% block breadcrumb %}
+<span class="separator">/</span>
+<span class="current">Semantic Definitions</span>
+{% endblock %}
+
+{% block content %}
+<div class="problem-banner">
+    <div class="icon">&#128279;</div>
+    <div class="text">
+        <h3>Semantic Definitions (OSI Mappings)</h3>
+        <p>Map how each governance metric is implemented in each data source. This is how we detect when "revenue" means different things in Snowflake vs Tableau — the root cause of the $1T AI problem.</p>
+    </div>
+</div>
+
+<!-- Add Definition Form -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#10133; Add Semantic Mapping</h2>
+    </div>
+    <p class="text-muted mb-2">Define how a governance metric is implemented in a specific data source.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="governance_metric">Governance Metric</label>
+                <select id="governance_metric" name="governance_metric" required>
+                    <option value="">Select a metric...</option>
+                    {% for metric in metrics %}
+                    <option value="{{ metric.pk }}">{{ metric.display_name }} ({{ metric.name }})</option>
+                    {% endfor %}
+                </select>
+                <p class="form-hint">The canonical metric being mapped</p>
+            </div>
+            <div class="form-group">
+                <label for="source">Data Source</label>
+                <select id="source" name="source" required>
+                    <option value="">Select a source...</option>
+                    {% for source in sources %}
+                    <option value="{{ source.pk }}">{{ source.name }} ({{ source.get_source_type_display }})</option>
+                    {% endfor %}
+                </select>
+                <p class="form-hint">Where this metric is implemented</p>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="local_name">Local Name in Source</label>
+                <input type="text" id="local_name" name="local_name" placeholder="e.g. total_rev, customer_revenue" required>
+                <p class="form-hint">What is this metric called in the source system?</p>
+            </div>
+            <div class="form-group">
+                <label for="definition_type">Type</label>
+                <select id="definition_type" name="definition_type">
+                    <option value="metric">Metric</option>
+                    <option value="dimension">Dimension</option>
+                    <option value="relationship">Relationship</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="local_formula">Local Formula / Calculation</label>
+            <textarea id="local_formula" name="local_formula" rows="2" placeholder="e.g. SUM(transaction_amount) WHERE status = 'completed'"></textarea>
+            <p class="form-hint">How is this metric calculated in this specific source? This will be compared against the canonical formula.</p>
+        </div>
+        <div class="form-group">
+            <label for="local_description">Local Description</label>
+            <textarea id="local_description" name="local_description" rows="2" placeholder="How this source defines/describes the metric"></textarea>
+        </div>
+        <button type="submit" class="btn">&#10133; Save Semantic Mapping</button>
+    </form>
+</div>
+
+<!-- Existing Definitions -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128279; All Semantic Mappings</h2>
+        <span class="text-muted text-sm">{{ definitions|length }} mappings</span>
+    </div>
+
+    {% if definitions %}
+    <div class="table-wrapper">
+        <table data-sortable>
+            <thead>
+                <tr>
+                    <th data-sort>Governance Metric</th>
+                    <th data-sort>Source</th>
+                    <th data-sort>Local Name</th>
+                    <th>Local Formula</th>
+                    <th data-sort>Consistent?</th>
+                    <th data-sort>Last Verified</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for defn in definitions %}
+                <tr>
+                    <td>
+                        <div class="fw-bold text-white">{{ defn.governance_metric.display_name }}</div>
+                        <code class="text-xs" style="color: var(--primary-light);">{{ defn.governance_metric.name }}</code>
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if defn.source.source_type == 'snowflake' %}snowflake{% elif defn.source.source_type == 'tableau' %}tableau{% else %}database{% endif %}">
+                            {{ defn.source.name }}
+                        </span>
+                    </td>
+                    <td>
+                        <code class="text-sm" style="color: var(--warning-light);">{{ defn.local_name }}</code>
+                    </td>
+                    <td class="text-sm text-muted" style="max-width: 250px;">
+                        {% if defn.local_formula %}
+                        <code>{{ defn.local_formula|truncatewords:8 }}</code>
+                        {% else %}
+                        <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if defn.is_consistent %}
+                        <span class="badge badge-success">&#10003; Consistent</span>
+                        {% else %}
+                        <span class="badge badge-danger">&#10007; Divergent</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted text-sm">
+                        {% if defn.last_verified %}
+                        {{ defn.last_verified|timesince }} ago
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#128279;</div>
+        <h3>No semantic mappings yet</h3>
+        <p>Add mappings above to define how each governance metric is implemented per source system.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

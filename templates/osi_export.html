@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}OSI Export - Trust Control Center{% endblock %}
+
+{% block breadcrumb %}
+<span class="separator">/</span>
+<span class="current">OSI Export/Import</span>
+{% endblock %}
+
+{% block content %}
+<div class="problem-banner">
+    <div class="icon">&#128196;</div>
+    <div class="text">
+        <h3>Open Semantic Interchange (OSI)</h3>
+        <p>Export and import your semantic model in OSI-compatible format. Based on the initiative by Snowflake, Salesforce, dbt Labs, BlackRock, and others to standardize how business data is defined across platforms.</p>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="icon">&#128203;</div>
+        <div class="label">Metrics</div>
+        <div class="value">{{ metrics_count }}</div>
+        <div class="subtitle">Canonical definitions</div>
+    </div>
+    <div class="stat-card">
+        <div class="icon">&#128451;</div>
+        <div class="label">Sources</div>
+        <div class="value">{{ sources_count }}</div>
+        <div class="subtitle">Data systems</div>
+    </div>
+    <div class="stat-card">
+        <div class="icon">&#128279;</div>
+        <div class="label">Mappings</div>
+        <div class="value">{{ mappings_count }}</div>
+        <div class="subtitle">Semantic definitions</div>
+    </div>
+    <div class="stat-card">
+        <div class="icon">&#128260;</div>
+        <div class="label">Lineage Flows</div>
+        <div class="value">{{ lineage_count }}</div>
+        <div class="subtitle">Data flows tracked</div>
+    </div>
+</div>
+
+<!-- Export -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128228; Export OSI Specification</h2>
+        <a href="{% url 'osi_export' %}?format=download" class="btn">&#11015; Download JSON</a>
+    </div>
+    <p class="text-muted mb-2">
+        Your complete semantic model in OSI-compatible JSON format. Share this with other teams or import into other tools.
+    </p>
+    <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1rem; max-height: 400px; overflow: auto;">
+        <pre style="color: var(--text-secondary); font-size: 0.8rem; white-space: pre-wrap; margin: 0;">{{ spec_json }}</pre>
+    </div>
+</div>
+
+<!-- Import -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128229; Import OSI Specification</h2>
+    </div>
+    <p class="text-muted mb-2">
+        Import a semantic model from another system or team. This will create or update metrics, sources, and semantic mappings.
+    </p>
+    <form method="post" action="{% url 'osi_import' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <div class="file-upload-area">
+                <div class="upload-icon">&#128196;</div>
+                <div class="upload-text"><strong>Click to upload</strong> or drag and drop</div>
+                <div class="upload-hint">OSI JSON file</div>
+                <input type="file" name="osi_file" accept=".json" required>
+                <div class="file-name"></div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" name="create_sources" style="width: auto;">
+                <span>Create data sources that don't exist yet</span>
+            </label>
+        </div>
+        <button type="submit" class="btn">&#128229; Import Specification</button>
+    </form>
+</div>
+
+<!-- What is OSI -->
+<div class="card info-card">
+    <h3>&#127919; What is OSI?</h3>
+    <p class="text-muted mt-1" style="line-height: 1.7;">
+        The <strong class="text-white">Open Semantic Interchange (OSI)</strong> is a vendor-neutral specification created by
+        Snowflake, Salesforce, dbt Labs, BlackRock, and 15+ other companies. It standardizes how semantic metadata
+        (metrics, dimensions, relationships) is defined and shared across tools — a "Rosetta Stone" for business data.
+    </p>
+    <div class="grid-3 mt-2">
+        <div>
+            <div class="fw-bold text-white mb-1">&#128203; Metrics</div>
+            <p class="text-sm text-muted">Canonical definitions with formulas and business logic</p>
+        </div>
+        <div>
+            <div class="fw-bold text-white mb-1">&#128279; Mappings</div>
+            <p class="text-sm text-muted">How each metric maps to each source system</p>
+        </div>
+        <div>
+            <div class="fw-bold text-white mb-1">&#128260; Lineage</div>
+            <p class="text-sm text-muted">Data flow tracking between systems</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

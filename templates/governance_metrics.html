@@ -66,7 +66,12 @@
             <textarea id="description" name="description" rows="3" placeholder="SUM(transaction_amount) WHERE transaction_type = 'sale' AND status = 'completed'&#10;&#10;This metric represents total revenue from all completed customer transactions."></textarea>
             <p class="form-hint">Include the exact calculation formula and business logic</p>
         </div>
-        <div class="grid-2">
+        <div class="form-group">
+            <label for="formula">Canonical Formula</label>
+            <textarea id="formula" name="formula" rows="2" placeholder="e.g. SUM(transaction_amount) WHERE transaction_type = 'sale' AND status = 'completed'"></textarea>
+            <p class="form-hint">The authoritative calculation formula. All source systems should match this.</p>
+        </div>
+        <div class="grid-3">
             <div class="form-group">
                 <label for="data_type">Data Type</label>
                 <select id="data_type" name="data_type">
@@ -77,10 +82,16 @@
                     <option value="datetime">DateTime</option>
                 </select>
             </div>
-            <div style="display: flex; align-items: flex-end;">
-                <button type="submit" class="btn btn-block">&#10133; Add Metric</button>
+            <div class="form-group">
+                <label for="category">Category</label>
+                <input type="text" id="category" name="category" placeholder="e.g. Revenue, Customer, Operations">
+            </div>
+            <div class="form-group">
+                <label for="owner">Owner</label>
+                <input type="text" id="owner" name="owner" placeholder="e.g. Finance Team, Data Engineering">
             </div>
         </div>
+        <button type="submit" class="btn btn-block">&#10133; Add Metric</button>
     </form>
 </div>
 
@@ -98,7 +109,8 @@
                 <tr>
                     <th data-sort>Metric</th>
                     <th data-sort>Data Type</th>
-                    <th data-sort>Description</th>
+                    <th>Formula</th>
+                    <th data-sort>Sources</th>
                     <th data-sort>Status</th>
                 </tr>
             </thead>
@@ -109,7 +121,7 @@
                         <div class="d-flex align-center gap-1">
                             <div class="system-icon database" style="width: 36px; height: 36px;">&#128202;</div>
                             <div>
-                                <code style="background: rgba(99,102,241,0.15); color: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">{{ metric.name }}</code>
+                                <code style="background: rgba(249,115,22,0.15); color: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">{{ metric.name }}</code>
                                 <div class="fw-bold text-white mt-1" style="font-size: 0.9rem;">{{ metric.display_name }}</div>
                             </div>
                         </div>
@@ -117,8 +129,19 @@
                     <td>
                         <span class="badge badge-high">{{ metric.data_type }}</span>
                     </td>
-                    <td style="max-width: 350px;" class="text-muted text-sm">
-                        {{ metric.description|truncatewords:20|default:"No description" }}
+                    <td class="text-sm text-muted" style="max-width: 250px;">
+                        {% if metric.formula %}
+                        <code>{{ metric.formula|truncatewords:8 }}</code>
+                        {% else %}
+                        <span class="badge badge-low">Not set</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if metric.source_count %}
+                        <span class="badge badge-high">{{ metric.source_count }} source{{ metric.source_count|pluralize }}</span>
+                        {% else %}
+                        <span class="text-muted text-sm">0</span>
+                        {% endif %}
                     </td>
                     <td>
                         {% if metric.is_active %}

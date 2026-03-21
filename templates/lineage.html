@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Data Lineage - Trust Control Center{% endblock %}
+
+{% block breadcrumb %}
+<span class="separator">/</span>
+<span class="current">Data Lineage</span>
+{% endblock %}
+
+{% block content %}
+<div class="problem-banner">
+    <div class="icon">&#128260;</div>
+    <div class="text">
+        <h3>Data Lineage Tracking</h3>
+        <p>Track how data flows between your enterprise systems. Understanding lineage is critical to knowing where metric inconsistencies originate and propagate.</p>
+    </div>
+</div>
+
+<!-- Lineage Visualization -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128279; Data Flow Map</h2>
+    </div>
+    {% if flows %}
+    <div class="data-flow" style="flex-direction: column; gap: 1.5rem;">
+        {% for flow in flows %}
+        <div class="d-flex align-center gap-2 flex-wrap" style="justify-content: center;">
+            <div class="data-node">
+                <div class="node-icon">
+                    {% if flow.source_from.source_type == 'snowflake' %}&#10052;&#65039;
+                    {% elif flow.source_from.source_type == 'tableau' %}&#128202;
+                    {% elif flow.source_from.source_type == 'database' %}&#128451;
+                    {% else %}&#128268;{% endif %}
+                </div>
+                <div class="node-name">{{ flow.source_from.name }}</div>
+            </div>
+            <div style="text-align: center;">
+                <div class="flow-arrow">&#8594;</div>
+                <div class="text-xs text-muted mt-1">
+                    <span class="badge badge-info">{{ flow.get_flow_type_display }}</span>
+                    {% if flow.schedule %}
+                    <br><span class="text-xs text-muted">{{ flow.schedule }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="data-node">
+                <div class="node-icon">
+                    {% if flow.source_to.source_type == 'snowflake' %}&#10052;&#65039;
+                    {% elif flow.source_to.source_type == 'tableau' %}&#128202;
+                    {% elif flow.source_to.source_type == 'database' %}&#128451;
+                    {% else %}&#128268;{% endif %}
+                </div>
+                <div class="node-name">{{ flow.source_to.name }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#128260;</div>
+        <h3>No lineage flows defined</h3>
+        <p>Add data flows below to track how data moves between your systems.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Lineage Form -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#10133; Add Data Flow</h2>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="grid-3">
+            <div class="form-group">
+                <label for="source_from">From Source</label>
+                <select id="source_from" name="source_from" required>
+                    <option value="">Select source...</option>
+                    {% for source in sources %}
+                    <option value="{{ source.pk }}">{{ source.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="source_to">To Source</label>
+                <select id="source_to" name="source_to" required>
+                    <option value="">Select destination...</option>
+                    {% for source in sources %}
+                    <option value="{{ source.pk }}">{{ source.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="flow_type">Flow Type</label>
+                <select id="flow_type" name="flow_type">
+                    <option value="etl">ETL Pipeline</option>
+                    <option value="replication">Replication</option>
+                    <option value="api_sync">API Sync</option>
+                    <option value="streaming">Streaming</option>
+                    <option value="manual">Manual</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="description">Description</label>
+                <input type="text" id="description" name="description" placeholder="e.g. Daily revenue sync pipeline">
+            </div>
+            <div class="form-group">
+                <label for="schedule">Schedule</label>
+                <input type="text" id="schedule" name="schedule" placeholder="e.g. hourly, daily, real-time">
+            </div>
+        </div>
+        <button type="submit" class="btn">&#10133; Add Flow</button>
+    </form>
+</div>
+
+<!-- Flows Table -->
+{% if flows %}
+<div class="card">
+    <div class="card-header">
+        <h2>&#128203; All Data Flows</h2>
+        <span class="text-muted text-sm">{{ flows|length }} flow{{ flows|length|pluralize }}</span>
+    </div>
+    <div class="table-wrapper">
+        <table data-sortable>
+            <thead>
+                <tr>
+                    <th data-sort>From</th>
+                    <th data-sort>To</th>
+                    <th data-sort>Type</th>
+                    <th data-sort>Schedule</th>
+                    <th data-sort>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for flow in flows %}
+                <tr>
+                    <td class="fw-bold text-white">{{ flow.source_from.name }}</td>
+                    <td class="fw-bold text-white">{{ flow.source_to.name }}</td>
+                    <td><span class="badge badge-info">{{ flow.get_flow_type_display }}</span></td>
+                    <td class="text-muted text-sm">{{ flow.schedule|default:"--" }}</td>
+                    <td>
+                        {% if flow.is_active %}
+                        <span class="badge badge-success">&#9679; Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">&#9675; Inactive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Reconciliation - Trust Control Center{% endblock %}
+
+{% block breadcrumb %}
+<span class="separator">/</span>
+<span class="current">Reconciliation</span>
+{% endblock %}
+
+{% block content %}
+<!-- Problem Context -->
+<div class="problem-banner">
+    <div class="icon">&#128260;</div>
+    <div class="text">
+        <h3>Cross-Source Metric Reconciliation</h3>
+        <p>The $1T AI problem: when "revenue" means different things in Snowflake vs Tableau, AI models fail. This engine compares metric definitions across all your sources to detect inconsistencies.</p>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="icon">&#128203;</div>
+        <div class="label">Governance Metrics</div>
+        <div class="value">{{ total_metrics }}</div>
+        <div class="subtitle">Canonical definitions</div>
+    </div>
+    <div class="stat-card">
+        <div class="icon">&#128279;</div>
+        <div class="label">Semantic Mappings</div>
+        <div class="value">{{ total_definitions }}</div>
+        <div class="subtitle">Source-specific definitions</div>
+    </div>
+    <div class="stat-card">
+        <div class="icon">&#9989;</div>
+        <div class="label">Metrics Mapped</div>
+        <div class="value">{{ metrics_with_defs }}</div>
+        <div class="subtitle">Of {{ total_metrics }} total</div>
+    </div>
+    <div class="stat-card {% if inconsistent_count > 0 %}danger{% else %}success{% endif %}">
+        <div class="icon">{% if inconsistent_count > 0 %}&#9888;&#65039;{% else %}&#9989;{% endif %}</div>
+        <div class="label">Inconsistencies</div>
+        <div class="value">{{ inconsistent_count }}</div>
+        <div class="subtitle">{% if inconsistent_count > 0 %}Need attention{% else %}All consistent{% endif %}</div>
+    </div>
+</div>
+
+<!-- Run Reconciliation -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128260; Run Reconciliation</h2>
+        <form method="post" action="{% url 'run_reconciliation' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn">&#9889; Reconcile All Metrics</button>
+        </form>
+    </div>
+    <p class="text-muted">
+        Compares how each governance metric is defined across your data sources (Snowflake, Tableau, databases, etc.)
+        and flags inconsistencies that could lead to unreliable AI predictions.
+    </p>
+</div>
+
+<!-- Metric Consistency Overview -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128202; Metric Consistency Overview</h2>
+    </div>
+    {% if metrics %}
+    <div class="table-wrapper">
+        <table data-sortable>
+            <thead>
+                <tr>
+                    <th data-sort>Metric</th>
+                    <th data-sort>Formula</th>
+                    <th data-sort>Sources</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for metric in metrics %}
+                <tr>
+                    <td>
+                        <div class="fw-bold text-white">{{ metric.display_name }}</div>
+                        <code class="text-xs" style="color: var(--primary-light);">{{ metric.name }}</code>
+                    </td>
+                    <td class="text-sm text-muted" style="max-width: 300px;">
+                        {% if metric.formula %}
+                        <code>{{ metric.formula|truncatewords:10 }}</code>
+                        {% else %}
+                        <span class="badge badge-low">No formula</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% for defn in metric.semantic_definitions.all %}
+                            <span class="badge badge-{% if defn.is_consistent %}verified{% else %}danger{% endif %}">
+                                {{ defn.source.name }}
+                            </span>
+                        {% empty %}
+                            <span class="text-muted text-sm">No mappings</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'run_reconciliation' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="metric_id" value="{{ metric.pk }}">
+                            <button type="submit" class="btn btn-sm btn-secondary">Reconcile</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#128203;</div>
+        <h3>No governance metrics yet</h3>
+        <p>Define metrics in Governance, then add semantic mappings to enable reconciliation.</p>
+        <a href="{% url 'governance_metrics' %}" class="btn mt-2">&#10133; Define Metrics</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Reconciliation Runs -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128337; Recent Reconciliation Runs</h2>
+    </div>
+    {% if recent_runs %}
+    <div class="table-wrapper">
+        <table data-sortable>
+            <thead>
+                <tr>
+                    <th data-sort>Metric</th>
+                    <th data-sort>Status</th>
+                    <th data-sort>Sources</th>
+                    <th data-sort>Consistency</th>
+                    <th data-sort>Divergences</th>
+                    <th data-sort>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in recent_runs %}
+                <tr>
+                    <td class="fw-bold text-white">{{ run.governance_metric.display_name }}</td>
+                    <td>
+                        <span class="badge badge-{% if run.status == 'consistent' %}verified{% elif run.status == 'partial' %}medium{% else %}danger{% endif %}">
+                            {{ run.status }}
+                        </span>
+                    </td>
+                    <td class="text-sm">{{ run.consistent_sources }}/{{ run.total_sources }} consistent</td>
+                    <td>
+                        <div class="d-flex align-center gap-1">
+                            <strong class="text-white">{{ run.consistency_score|floatformat:0 }}%</strong>
+                            <div class="score-bar" style="width: 80px;">
+                                <div class="score-bar-fill {% if run.consistency_score >= 90 %}verified{% elif run.consistency_score >= 60 %}medium{% else %}untrusted{% endif %}" style="width: {{ run.consistency_score }}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if run.divergences %}
+                        <span class="badge badge-danger">{{ run.divergences|length }} issue{{ run.divergences|length|pluralize }}</span>
+                        {% else %}
+                        <span class="badge badge-success">None</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted text-sm">{{ run.run_at|timesince }} ago</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#128337;</div>
+        <h3>No reconciliation runs yet</h3>
+        <p>Click "Reconcile All Metrics" above to run your first cross-source comparison.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

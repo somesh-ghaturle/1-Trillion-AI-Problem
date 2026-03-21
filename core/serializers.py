@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import DataSource, ValidationResult, TrustScore, GovernanceMetric
+from .models import (
+    DataSource, ValidationResult, TrustScore, GovernanceMetric,
+    SemanticDefinition, ReconciliationRun, DataLineage,
+)
 
 
 class DataSourceSerializer(serializers.ModelSerializer):
@@ -35,14 +38,37 @@ class TrustScoreSerializer(serializers.ModelSerializer):
 
 
 class GovernanceMetricSerializer(serializers.ModelSerializer):
+    source_count = serializers.SerializerMethodField()
+
     class Meta:
         model = GovernanceMetric
         fields = '__all__'
 
+    def get_source_count(self, obj):
+        return obj.semantic_definitions.count()
 
-class TrustScoreSummarySerializer(serializers.Serializer):
-    overall_score = serializers.FloatField()
-    trust_level = serializers.CharField()
-    dimensions = serializers.DictField()
-    issues = serializers.ListField()
-    metadata = serializers.DictField()
+
+class SemanticDefinitionSerializer(serializers.ModelSerializer):
+    metric_name = serializers.CharField(source='governance_metric.name', read_only=True)
+    source_name = serializers.CharField(source='source.name', read_only=True)
+
+    class Meta:
+        model = SemanticDefinition
+        fields = '__all__'
+
+
+class ReconciliationRunSerializer(serializers.ModelSerializer):
+    metric_name = serializers.CharField(source='governance_metric.name', read_only=True)
+
+    class Meta:
+        model = ReconciliationRun
+        fields = '__all__'
+
+
+class DataLineageSerializer(serializers.ModelSerializer):
+    from_name = serializers.CharField(source='source_from.name', read_only=True)
+    to_name = serializers.CharField(source='source_to.name', read_only=True)
+
+    class Meta:
+        model = DataLineage
+        fields = '__all__'

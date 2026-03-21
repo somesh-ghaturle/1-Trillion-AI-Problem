@@ -138,39 +138,41 @@
     <div class="dimension-grid">
         <div class="dimension-item">
             <div class="name">&#128203; Completeness</div>
-            <div class="score">--</div>
+            <div class="score {% if dim_completeness >= 80 %}text-success{% elif dim_completeness >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ dim_completeness }}%</div>
+            <div class="score-bar"><div class="score-bar-fill {% if dim_completeness >= 90 %}verified{% elif dim_completeness >= 75 %}high{% elif dim_completeness >= 60 %}medium{% else %}low{% endif %}" style="width: {{ dim_completeness }}%"></div></div>
             <p class="text-xs text-muted mt-1">Missing values & null fields</p>
         </div>
         <div class="dimension-item">
             <div class="name">&#127919; Accuracy</div>
-            <div class="score">--</div>
+            <div class="score {% if dim_accuracy >= 80 %}text-success{% elif dim_accuracy >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ dim_accuracy }}%</div>
+            <div class="score-bar"><div class="score-bar-fill {% if dim_accuracy >= 90 %}verified{% elif dim_accuracy >= 75 %}high{% elif dim_accuracy >= 60 %}medium{% else %}low{% endif %}" style="width: {{ dim_accuracy }}%"></div></div>
             <p class="text-xs text-muted mt-1">Value correctness</p>
         </div>
         <div class="dimension-item">
             <div class="name">&#128279; Consistency</div>
-            <div class="score">--</div>
+            <div class="score {% if dim_consistency >= 80 %}text-success{% elif dim_consistency >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ dim_consistency }}%</div>
+            <div class="score-bar"><div class="score-bar-fill {% if dim_consistency >= 90 %}verified{% elif dim_consistency >= 75 %}high{% elif dim_consistency >= 60 %}medium{% else %}low{% endif %}" style="width: {{ dim_consistency }}%"></div></div>
             <p class="text-xs text-muted mt-1">Cross-system matching</p>
         </div>
         <div class="dimension-item">
             <div class="name">&#9200; Timeliness</div>
-            <div class="score">--</div>
+            <div class="score {% if dim_timeliness >= 80 %}text-success{% elif dim_timeliness >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ dim_timeliness }}%</div>
+            <div class="score-bar"><div class="score-bar-fill {% if dim_timeliness >= 90 %}verified{% elif dim_timeliness >= 75 %}high{% elif dim_timeliness >= 60 %}medium{% else %}low{% endif %}" style="width: {{ dim_timeliness }}%"></div></div>
             <p class="text-xs text-muted mt-1">Data freshness</p>
         </div>
         <div class="dimension-item">
             <div class="name">&#9989; Validity</div>
-            <div class="score">--</div>
+            <div class="score {% if dim_validity >= 80 %}text-success{% elif dim_validity >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ dim_validity }}%</div>
+            <div class="score-bar"><div class="score-bar-fill {% if dim_validity >= 90 %}verified{% elif dim_validity >= 75 %}high{% elif dim_validity >= 60 %}medium{% else %}low{% endif %}" style="width: {{ dim_validity }}%"></div></div>
             <p class="text-xs text-muted mt-1">Business rule compliance</p>
         </div>
         <div class="dimension-item">
             <div class="name">&#128290; Uniqueness</div>
-            <div class="score">--</div>
+            <div class="score {% if dim_uniqueness >= 80 %}text-success{% elif dim_uniqueness >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ dim_uniqueness }}%</div>
+            <div class="score-bar"><div class="score-bar-fill {% if dim_uniqueness >= 90 %}verified{% elif dim_uniqueness >= 75 %}high{% elif dim_uniqueness >= 60 %}medium{% else %}low{% endif %}" style="width: {{ dim_uniqueness }}%"></div></div>
             <p class="text-xs text-muted mt-1">Duplicate detection</p>
         </div>
     </div>
-    <p class="text-center text-muted mt-2 text-sm">
-        Upload data to a source to see dimension scores &#8594;
-        <a href="{% url 'data_sources' %}">Go to Data Sources</a>
-    </p>
 </div>
 
 <!-- Two Column Grid: Recent Activity -->
@@ -264,15 +266,79 @@
     </div>
 </div>
 
+<!-- Semantic Consistency (OSI) -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128279; Semantic Consistency (OSI)</h2>
+        <a href="{% url 'reconciliation_dashboard' %}" class="btn btn-sm btn-secondary">View Reconciliation</a>
+    </div>
+    <div class="stats-grid" style="margin-bottom: 0;">
+        <div class="stat-card">
+            <div class="icon">&#128203;</div>
+            <div class="label">Governance Metrics</div>
+            <div class="value">{{ total_metrics }}</div>
+            <div class="subtitle">Canonical definitions</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">&#128279;</div>
+            <div class="label">Semantic Mappings</div>
+            <div class="value">{{ total_semantic_defs }}</div>
+            <div class="subtitle">Source-specific definitions</div>
+        </div>
+        <div class="stat-card {% if inconsistent_count > 0 %}danger{% else %}success{% endif %}">
+            <div class="icon">{% if inconsistent_count > 0 %}&#9888;&#65039;{% else %}&#9989;{% endif %}</div>
+            <div class="label">Inconsistencies</div>
+            <div class="value">{{ inconsistent_count }}</div>
+            <div class="subtitle">{% if inconsistent_count > 0 %}Cross-source divergences{% else %}All definitions aligned{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+{% if recent_reconciliations %}
+<!-- Recent Reconciliation Runs -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#9878; Recent Reconciliations</h2>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Status</th>
+                    <th>Consistency</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in recent_reconciliations %}
+                <tr>
+                    <td class="fw-bold text-white">{{ run.governance_metric.display_name }}</td>
+                    <td>
+                        <span class="badge badge-{% if run.status == 'consistent' %}verified{% elif run.status == 'partial' %}medium{% else %}danger{% endif %}">{{ run.status }}</span>
+                    </td>
+                    <td><strong class="text-white">{{ run.consistency_score|floatformat:0 }}%</strong></td>
+                    <td class="text-muted text-sm">{{ run.run_at|timesince }} ago</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <!-- Quick Actions -->
 <div class="card">
     <div class="card-header">
         <h2>&#9889; Quick Actions</h2>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <a href="{% url 'data_sources' %}" class="btn">&#128451; View Data Sources</a>
-        <a href="{% url 'governance_metrics' %}" class="btn btn-secondary">&#128203; Manage Governance</a>
-        <a href="/admin/core/datasource/add/" class="btn btn-secondary">&#10133; Add New Source</a>
+        <a href="{% url 'data_sources' %}" class="btn">&#128451; Data Sources</a>
+        <a href="{% url 'governance_metrics' %}" class="btn btn-secondary">&#128203; Governance</a>
+        <a href="{% url 'semantic_definitions' %}" class="btn btn-secondary">&#128279; Semantic Mappings</a>
+        <a href="{% url 'reconciliation_dashboard' %}" class="btn btn-secondary">&#9878; Reconciliation</a>
+        <a href="{% url 'osi_export' %}" class="btn btn-secondary">&#128196; OSI Export</a>
+        <a href="/admin/core/datasource/add/" class="btn btn-secondary">&#10133; Add Source</a>
     </div>
 </div>
 
@@ -333,9 +399,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     backgroundColor: [
                         {% for item in trust_distribution %}
                             {% if item.trust_level == 'verified' %}'#10b981'
-                            {% elif item.trust_level == 'high' %}'#6366f1'
-                            {% elif item.trust_level == 'medium' %}'#f59e0b'
-                            {% elif item.trust_level == 'low' %}'#f97316'
+                            {% elif item.trust_level == 'high' %}'#f97316'
+                            {% elif item.trust_level == 'medium' %}'#fbbf24'
+                            {% elif item.trust_level == 'low' %}'#d97706'
                             {% else %}'#ef4444'
                             {% endif %}{% if not forloop.last %},{% endif %}
                         {% empty %}
@@ -370,13 +436,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Trust Score',
                     data: trustScores.length ? trustScores : [0],
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99,102,241,0.1)',
+                    borderColor: '#f97316',
+                    backgroundColor: 'rgba(249,115,22,0.1)',
                     fill: true,
                     tension: 0.4,
                     pointRadius: 4,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: '#6366f1',
+                    pointBackgroundColor: '#f97316',
                     borderWidth: 2
                 }]
             },

@@ -5,21 +5,21 @@
 
 /* ---------- CSS Variables / Theme ---------- */
 :root {
-    --primary: #6366f1;
-    --primary-dark: #4f46e5;
-    --primary-light: #818cf8;
-    --secondary: #8b5cf6;
+    --primary: #f97316;
+    --primary-dark: #ea580c;
+    --primary-light: #fb923c;
+    --secondary: #f59e0b;
     --success: #10b981;
     --success-light: #34d399;
-    --warning: #f59e0b;
-    --warning-light: #fbbf24;
+    --warning: #eab308;
+    --warning-light: #facc15;
     --danger: #ef4444;
     --danger-light: #f87171;
     --info: #06b6d4;
 
     /* Dark theme (default) */
-    --bg-body: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-    --bg-sidebar: rgba(15, 12, 41, 0.95);
+    --bg-body: linear-gradient(135deg, #1a0e00 0%, #2d1a05 50%, #1c1207 100%);
+    --bg-sidebar: rgba(26, 14, 0, 0.95);
     --bg-card: rgba(255,255,255,0.05);
     --bg-card-hover: rgba(255,255,255,0.08);
     --bg-input: rgba(255,255,255,0.05);
@@ -36,7 +36,7 @@
 
 /* Light theme */
 [data-theme="light"] {
-    --bg-body: linear-gradient(135deg, #f0f4ff 0%, #e8ecf4 50%, #f5f3ff 100%);
+    --bg-body: linear-gradient(135deg, #fff7ed 0%, #fef3e2 50%, #fffbf5 100%);
     --bg-sidebar: rgba(255, 255, 255, 0.97);
     --bg-card: rgba(255,255,255,0.8);
     --bg-card-hover: rgba(255,255,255,0.95);
@@ -161,13 +161,13 @@ body {
 
 .nav-link:hover {
     color: var(--text-white);
-    background: rgba(99,102,241,0.1);
+    background: rgba(249,115,22,0.1);
     text-decoration: none;
 }
 
 .nav-link.active {
     color: var(--primary-light);
-    background: rgba(99,102,241,0.15);
+    background: rgba(249,115,22,0.15);
     font-weight: 600;
 }
 
@@ -180,7 +180,7 @@ body {
 
 .nav-link .nav-badge {
     margin-left: auto;
-    background: rgba(99,102,241,0.2);
+    background: rgba(249,115,22,0.2);
     color: var(--primary-light);
     padding: 0.15rem 0.5rem;
     border-radius: 10px;
@@ -464,7 +464,7 @@ body {
 .stat-card .icon {
     width: 42px;
     height: 42px;
-    background: rgba(99,102,241,0.15);
+    background: rgba(249,115,22,0.15);
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -511,7 +511,7 @@ body {
 }
 
 .score-bar-fill.verified { background: linear-gradient(90deg, #10b981, #34d399); }
-.score-bar-fill.high     { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+.score-bar-fill.high     { background: linear-gradient(90deg, #f97316, #f59e0b); }
 .score-bar-fill.medium   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 .score-bar-fill.low      { background: linear-gradient(90deg, #f97316, #fb923c); }
 .score-bar-fill.untrusted { background: linear-gradient(90deg, #ef4444, #f87171); }
@@ -584,7 +584,7 @@ body {
 
 .btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 25px rgba(99,102,241,0.3);
+    box-shadow: 0 8px 25px rgba(249,115,22,0.3);
     text-decoration: none;
     color: #fff;
 }
@@ -673,7 +673,7 @@ tr:last-child td { border-bottom: none; }
 }
 
 .badge-verified  { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
-.badge-high      { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+.badge-high      { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
 .badge-medium    { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
 .badge-low       { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
 .badge-untrusted { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
@@ -716,7 +716,7 @@ tr:last-child td { border-bottom: none; }
 .form-group select:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.15);
 }
 
 .form-group input::placeholder,
@@ -745,7 +745,7 @@ tr:last-child td { border-bottom: none; }
 .file-upload-area:hover,
 .file-upload-area.dragover {
     border-color: var(--primary);
-    background: rgba(99,102,241,0.05);
+    background: rgba(249,115,22,0.05);
 }
 
 .file-upload-area .upload-icon {
@@ -779,7 +779,7 @@ tr:last-child td { border-bottom: none; }
 .file-upload-area .file-name {
     margin-top: 0.75rem;
     padding: 0.5rem 1rem;
-    background: rgba(99,102,241,0.1);
+    background: rgba(249,115,22,0.1);
     border-radius: 6px;
     font-size: 0.85rem;
     color: var(--primary-light);
@@ -964,16 +964,16 @@ tr:last-child td { border-bottom: none; }
 .system-icon.tableau   { background: rgba(245,158,11,0.15); }
 .system-icon.database  { background: rgba(168,85,247,0.15); }
 .system-icon.api       { background: rgba(16,185,129,0.15); }
-.system-icon.file      { background: rgba(99,102,241,0.15); }
+.system-icon.file      { background: rgba(249,115,22,0.15); }
 
 /* ---------- Info Card ---------- */
 .info-card {
-    background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.08) 100%);
-    border-color: rgba(99,102,241,0.2);
+    background: linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(245,158,11,0.08) 100%);
+    border-color: rgba(249,115,22,0.2);
 }
 
 .success-card {
-    background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(99,102,241,0.08) 100%);
+    background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(249,115,22,0.08) 100%);
     border-color: rgba(16,185,129,0.2);
 }
 

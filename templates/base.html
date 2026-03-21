@@ -42,6 +42,22 @@
                 <a href="{% url 'governance_metrics' %}" class="nav-link {% if request.resolver_match.url_name == 'governance_metrics' %}active{% endif %}">
                     <span class="nav-icon">&#128203;</span> Governance
                 </a>
+                <a href="{% url 'lineage' %}" class="nav-link {% if request.resolver_match.url_name == 'lineage' %}active{% endif %}">
+                    <span class="nav-icon">&#128260;</span> Data Lineage
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">OSI / Reconciliation</div>
+                <a href="{% url 'semantic_definitions' %}" class="nav-link {% if request.resolver_match.url_name == 'semantic_definitions' %}active{% endif %}">
+                    <span class="nav-icon">&#128279;</span> Semantic Mappings
+                </a>
+                <a href="{% url 'reconciliation_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'reconciliation_dashboard' %}active{% endif %}">
+                    <span class="nav-icon">&#9878;</span> Reconciliation
+                </a>
+                <a href="{% url 'osi_export' %}" class="nav-link {% if request.resolver_match.url_name == 'osi_export' %}active{% endif %}">
+                    <span class="nav-icon">&#128196;</span> OSI Export
+                </a>
             </div>
 
             <div class="nav-section">
@@ -49,8 +65,8 @@
                 <a href="/api/" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
                     <span class="nav-icon">&#128268;</span> API Status
                 </a>
-                <a href="/api/docs/" class="nav-link">
-                    <span class="nav-icon">&#128196;</span> API Docs
+                <a href="/api/v1/" class="nav-link">
+                    <span class="nav-icon">&#128196;</span> API Browser
                 </a>
             </div>
 
