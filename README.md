@@ -8,6 +8,12 @@ Built around the [Open Semantic Interchange (OSI)](https://venturebeat.com/ai/th
 
 ---
 
+<div align="center">
+  <img src="dashboard-screenshot.png" alt="Trust Control Center Dashboard" width="100%" />
+</div>
+
+---
+
 ## The Problem
 
 Enterprise data is fragmented across dozens of systems. The same business metric — "revenue", "customer count", "churn rate" — is defined and calculated differently in each one:
