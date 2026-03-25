@@ -525,6 +525,30 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 
 ---
 
+## Roadmap
+
+### Phase 1 — Security & API Polish
+- [ ] **Authentication & Role-Based Access Control** — User login, admin/viewer roles, token-based API auth, permission scoping per endpoint
+- [ ] **Swagger/OpenAPI Documentation** — Interactive API docs at `/api/docs/` using `drf-spectacular`, auto-generated schema from serializers
+- [ ] **API Rate Limiting & Throttling** — DRF throttling classes for public and authenticated endpoints
+
+### Phase 2 — Production Infrastructure
+- [ ] **PostgreSQL Support** — Production-grade database with `docker-compose.yml` running Postgres + Django
+- [ ] **Celery + Redis for Async Tasks** — Background job processing for reconciliation runs, trust score calculations, and bulk operations
+- [ ] **Real-Time Alerts & Notifications** — Webhook and email alerts when trust scores drop, reconciliation detects divergences, or validation fails
+
+### Phase 3 — Analytics & Export
+- [ ] **Historical Trend Analytics** — Track trust score changes over time, anomaly detection on quality metrics, trend forecasting
+- [ ] **CSV / Excel / Parquet Export** — Export reconciliation results, trust scores, and governance metrics in multiple formats beyond JSON/OSI
+- [ ] **Bulk Import & Batch Operations** — Batch upload of semantic definitions, bulk reconciliation across all metrics
+
+### Phase 4 — UX & Usability
+- [ ] **Advanced Search & Filtering** — Full-text search across metrics, sources, and definitions; filter by trust level, divergence severity, source type
+- [ ] **Real Data Source Connectors** — Live integrations with Snowflake, Tableau, Salesforce, BigQuery, and dbt for automatic semantic definition sync
+- [ ] **Monitoring & Observability Dashboard** — Prometheus metrics, health checks, uptime tracking, and integration with Grafana
+
+---
+
 ## Contributing
 
 PRs welcome. For changes to scoring logic, reconciliation rules, or governance features, include unit tests in `core/tests/`.
