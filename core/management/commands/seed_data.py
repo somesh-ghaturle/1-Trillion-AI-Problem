@@ -698,11 +698,12 @@ class Command(BaseCommand):
             source = sources.get(source_name)
             if not source:
                 continue
-            # Create current and historical scores
+            # Create current and historical scores (weekly)
             for i in range(3):
                 jitter = random.uniform(-3, 3) if i > 0 else 0
                 TrustScore.objects.create(
                     source=source,
+                    calculated_at=now - timedelta(days=i * 7, hours=random.randint(0, 12)),
                     overall_score=min(100, max(0, profile['overall'] + jitter)),
                     trust_level=profile['level'],
                     completeness_score=min(100, max(0, profile['completeness'] + jitter)),

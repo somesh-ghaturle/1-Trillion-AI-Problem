@@ -71,14 +71,34 @@
         </div>
     </div>
 
-    <!-- Quality Trend Chart -->
+    <!-- Health Over Time: daily trust, data quality, reconciliation consistency -->
     <div class="card">
         <div class="card-header">
-            <h2>&#128200; Quality Score Trends</h2>
+            <h2>&#128200; Health Over Time</h2>
+            <span class="text-muted text-sm">Daily average &middot; last 30 days</span>
         </div>
+        {% if health_trend.labels|length < 2 %}
+        <p class="text-muted text-sm">Not enough history yet. Trends appear once there is activity on two or more days.</p>
+        {% endif %}
         <div class="chart-container">
-            <canvas id="qualityTrendChart"></canvas>
+            <canvas id="healthTrendChart" role="img"
+                    aria-label="Line chart of daily average trust score, data quality, and reconciliation consistency, 0 to 100 percent, over the last 30 days. A table view follows."></canvas>
         </div>
+        <details class="text-sm" style="margin-top: 0.75rem;">
+            <summary class="text-muted" style="cursor: pointer;">View as table</summary>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>Date</th>{% for s in health_trend.series %}<th>{{ s.name }}</th>{% endfor %}</tr></thead>
+                    <tbody>
+                        {% for row in health_trend.rows %}
+                        <tr>{% for cell in row %}<td>{% if forloop.first %}{{ cell|date:"M j, Y" }}{% elif cell is None %}&mdash;{% else %}{{ cell }}%{% endif %}</td>{% endfor %}</tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted">No data in the last 30 days.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
     </div>
 </div>
 
@@ -377,6 +397,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ health_trend|json_script:"health-trend-data" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -423,41 +444,99 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Quality Trend Line Chart
-    const trendCtx = document.getElementById('qualityTrendChart');
+    // Health Over Time: one 0-100% axis, three series (palette validated for both themes' surfaces)
+    const trendCtx = document.getElementById('healthTrendChart');
     if (trendCtx) {
-        const trustScores = [{% for score in recent_trust_scores %}{{ score.overall_score|floatformat:1 }}{% if not forloop.last %}, {% endif %}{% endfor %}].reverse();
-        const labels = [{% for score in recent_trust_scores %}'{{ score.calculated_at|timesince }}'{% if not forloop.last %}, {% endif %}{% endfor %}].reverse();
+        const trend = JSON.parse(document.getElementById('health-trend-data').textContent);
+        const palette = isDark ? ['#3987e5', '#d95926', '#199e70'] : ['#2a78d6', '#eb6834', '#1baf7a'];
+        const surface = isDark ? '#2d1a05' : '#fff7ed';
+        const crosshairColor = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)';
+        const fmtDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+        // Crosshair at the hovered date + a direct label at each series' latest point (text in text ink, not series color)
+        const annotate = {
+            id: 'annotate',
+            afterDatasetsDraw(chart) {
+                const { ctx, chartArea } = chart;
+                const active = chart.tooltip && chart.tooltip.getActiveElements();
+                if (active && active.length) {
+                    ctx.save();
+                    ctx.strokeStyle = crosshairColor;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(active[0].element.x, chartArea.top);
+                    ctx.lineTo(active[0].element.x, chartArea.bottom);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                const labels = [];
+                chart.data.datasets.forEach((ds, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    if (meta.hidden) return;
+                    let last = -1;
+                    ds.data.forEach((v, j) => { if (v !== null) last = j; });
+                    if (last < 0) return;
+                    labels.push({ text: ds.label, x: meta.data[last].x, py: meta.data[last].y });
+                });
+                // Label above its point; if that would crowd the label above, put it below its own point instead
+                labels.sort((a, b) => a.py - b.py);
+                labels.forEach((l, i) => {
+                    l.y = l.py - 12;
+                    if (i > 0 && l.y < labels[i - 1].y + 14) l.y = l.py + 24;
+                });
+                ctx.save();
+                ctx.font = '12px Inter, sans-serif';
+                ctx.fillStyle = textColor;
+                ctx.textBaseline = 'bottom';
+                labels.forEach((l) => {
+                    const w = ctx.measureText(l.text).width;
+                    ctx.fillText(l.text, Math.max(chartArea.left, Math.min(l.x - w / 2, chartArea.right - w)), Math.max(l.y, chartArea.top + 12));
+                });
+                ctx.restore();
+            }
+        };
 
         new Chart(trendCtx, {
             type: 'line',
             data: {
-                labels: labels.length ? labels : ['No data'],
-                datasets: [{
-                    label: 'Trust Score',
-                    data: trustScores.length ? trustScores : [0],
-                    borderColor: '#f97316',
-                    backgroundColor: 'rgba(249,115,22,0.1)',
-                    fill: true,
-                    tension: 0.4,
+                labels: trend.labels,
+                datasets: trend.series.map((s, i) => ({
+                    label: s.name,
+                    data: s.values,
+                    borderColor: palette[i],
+                    backgroundColor: palette[i],
+                    borderWidth: 2,
+                    tension: 0,
+                    spanGaps: true,
                     pointRadius: 4,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: '#f97316',
-                    borderWidth: 2
-                }]
+                    pointBorderColor: surface,
+                    pointBorderWidth: 2,
+                    pointHitRadius: 12
+                }))
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                layout: { padding: { top: 8 } },
+                interaction: { mode: 'index', intersect: false },
                 scales: {
-                    y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { callback: function(v) { return v + '%'; } } },
-                    x: { grid: { display: false } }
+                    y: { min: 0, max: 100, grid: { color: gridColor }, border: { display: false },
+                         ticks: { stepSize: 25, callback: (v) => v + '%' } },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8, callback: function(v) { return fmtDate(this.getLabelForValue(v)); } } }
                 },
                 plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: function(ctx) { return 'Trust: ' + ctx.parsed.y + '%'; } } }
+                    legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8 } },
+                    tooltip: {
+                        filter: (item) => item.parsed.y !== null,
+                        callbacks: {
+                            title: (items) => fmtDate(items[0].label),
+                            label: (item) => ' ' + item.dataset.label + ': ' + item.parsed.y.toFixed(1) + '%'
+                        }
+                    }
                 }
-            }
+            },
+            plugins: [annotate]
         });
     }
 });

@@ -319,7 +319,7 @@ flowchart LR
 
 | Page | URL | Description |
 | ---- | --- | ----------- |
-| Dashboard | `/` | Overview with trust scores, quality trends, reconciliation status, dimension analysis |
+| Dashboard | `/` | Overview with trust scores, 30-day health trend (trust, quality, consistency), reconciliation status, dimension analysis |
 | Data Sources | `/sources/` | All monitored systems with trust scores and validation history |
 | Governance | `/governance/` | Define canonical metrics (the single source of truth) |
 | Semantic Mappings | `/semantic/` | Map how metrics are implemented per source system |
@@ -603,7 +603,8 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 - [ ] **Real-Time Alerts & Notifications** — Webhook and email alerts when trust scores drop, reconciliation detects divergences, or validation fails
 
 ### Phase 3 — Analytics & Export
-- [ ] **Historical Trend Analytics** — Track trust score changes over time, anomaly detection on quality metrics, trend forecasting
+- [x] **Historical Trend Analytics** — Dashboard "Health Over Time" chart: daily trust score, data quality, and reconciliation consistency (30 days, with table view)
+- [ ] **Anomaly Detection & Forecasting** — Flag sudden drops in quality metrics, project trends forward
 - [x] **CSV Export of Reconciliation Results** — `/reconciliation/export.csv`
 - [ ] **More Export Formats** — Trust scores and governance metrics as CSV / Excel / Parquet
 - [ ] **Bulk Import & Batch Operations** — Batch upload of semantic definitions, bulk reconciliation across all metrics

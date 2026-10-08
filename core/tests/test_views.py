@@ -100,3 +100,41 @@ class APIHealthViewTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data['status'], 'running')
+
+
+class HealthTrendTest(TestCase):
+    def test_daily_averages_with_gaps(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from core.views import health_trend
+        source = DataSource.objects.create(name='S')
+        now = timezone.now()
+        TrustScore.objects.create(source=source, overall_score=80, calculated_at=now)
+        TrustScore.objects.create(source=source, overall_score=60, calculated_at=now)
+        TrustScore.objects.create(source=source, overall_score=50, calculated_at=now - timedelta(days=3))
+        TrustScore.objects.create(source=source, overall_score=10, calculated_at=now - timedelta(days=40))  # outside window
+        ValidationResult.objects.create(source=source, quality_score=90, timestamp=now - timedelta(days=3))
+
+        trend = health_trend()
+        self.assertEqual(len(trend['labels']), 4)  # every day from first to last
+        self.assertEqual(len(trend['rows']), 2)  # table lists only days with data
+        values = {s['name']: s['values'] for s in trend['series']}
+        self.assertEqual(values['Trust score'], [50.0, None, None, 70.0])
+        self.assertEqual(values['Data quality'], [90.0, None, None, None])
+        self.assertEqual(values['Reconciliation consistency'], [None] * 4)
+
+    def test_backdated_timestamp_is_kept(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        source = DataSource.objects.create(name='S')
+        past = timezone.now() - timedelta(days=5)
+        score = TrustScore.objects.create(source=source, overall_score=1, calculated_at=past)
+        score.overall_score = 2
+        score.save()
+        score.refresh_from_db()
+        self.assertEqual(score.calculated_at, past)
+
+    def test_dashboard_embeds_trend(self):
+        resp = self.client.get(reverse('dashboard'))
+        self.assertContains(resp, 'id="health-trend-data"')
+        self.assertContains(resp, 'Health Over Time')
