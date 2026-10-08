@@ -28,6 +28,13 @@ class AnonymousWriteTest(TestCase):
         self.client.post(reverse('governance_metrics'), {'name': 'x', 'display_name': 'X'})
         self.assertTrue(GovernanceMetric.objects.filter(name='x').exists())
 
+    def test_duplicate_metric_name_shows_error(self):
+        self.client.force_login(User.objects.create_user('tester'))
+        self.client.post(reverse('governance_metrics'), {'name': 'x', 'display_name': 'X'})
+        resp = self.client.post(reverse('governance_metrics'), {'name': 'x', 'display_name': 'X2'})
+        self.assertContains(resp, 'already exists')
+        self.assertEqual(GovernanceMetric.objects.filter(name='x').count(), 1)
+
 
 class SeedIdempotencyTest(TestCase):
     def test_second_seed_adds_nothing(self):

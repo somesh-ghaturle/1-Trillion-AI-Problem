@@ -138,6 +138,9 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # Security settings for production
 if not DEBUG:
+    # Hosts like Render/Heroku/Fly terminate TLS at a proxy. Without this, Django sees
+    # http while the browser sends Origin: https://..., and every form POST fails CSRF.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SESSION_COOKIE_SECURE = True
