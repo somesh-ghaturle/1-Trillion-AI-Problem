@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from . import views
 from . import api_views
+from . import exports
 
 # DRF Router
 router = DefaultRouter()
@@ -31,6 +32,7 @@ urlpatterns = [
     path('reconciliation/', views.reconciliation_dashboard, name='reconciliation_dashboard'),
     path('reconciliation/run/', views.run_reconciliation, name='run_reconciliation'),
     path('reconciliation/export.csv', views.reconciliation_csv, name='reconciliation_csv'),
+    path('export/<slug:dataset>.<str:fmt>', exports.export_view, name='export'),
 
     # Data Lineage
     path('lineage/', views.lineage_view, name='lineage'),

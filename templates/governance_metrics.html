@@ -99,7 +99,7 @@
 <div class="card">
     <div class="card-header">
         <h2>&#128203; Defined Metrics</h2>
-        <span class="text-muted text-sm">{{ metrics|length }} metrics defined</span>
+        <span class="text-muted text-sm">{{ metrics|length }} metrics defined &middot; {% include '_export_links.html' with dataset='governance-metrics' %}</span>
     </div>
 
     {% if metrics %}

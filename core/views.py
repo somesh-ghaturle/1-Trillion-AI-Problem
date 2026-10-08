@@ -1,4 +1,3 @@
-import csv
 import json
 import io
 import logging
@@ -21,6 +20,7 @@ from .models import (
 from .utils import DataQualityValidator, TrustScoringEngine, ReconciliationEngine
 from .utils.osi_export import export_osi_spec, import_osi_spec
 from .utils.dbt_import import import_metrics, load_texts
+from .exports import export_view
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -445,35 +445,10 @@ def run_reconciliation(request):
     return redirect('reconciliation_dashboard')
 
 
-def _csv_safe(value):
-    """Neutralize spreadsheet formulas: source names and formulas are user-supplied."""
-    if isinstance(value, str) and value[:1] in ('=', '+', '-', '@', '\t', '\r'):
-        return "'" + value
-    return value
-
-
 def reconciliation_csv(request):
-    """Download the latest run per metric as CSV, one row per divergence."""
-    response = HttpResponse(content_type='text/csv')
+    """Latest run per metric as CSV, one row per divergence (kept at its original URL)."""
+    response = export_view(request, 'reconciliation', 'csv')
     response['Content-Disposition'] = 'attachment; filename="reconciliation_results.csv"'
-    writer = csv.writer(response)
-    writer.writerow([
-        'metric', 'run_at', 'status', 'consistency_score',
-        'source_a', 'source_b', 'divergence_type', 'severity', 'detail', 'recommendation',
-    ])
-    # ponytail: one query per metric; fine for tens of metrics, use a Subquery if this grows to thousands
-    for metric in GovernanceMetric.objects.filter(is_active=True).order_by('name'):
-        run = metric.reconciliations.order_by('-run_at', '-pk').first()
-        if not run:
-            continue
-        base = [metric.name, run.run_at.isoformat(), run.status, run.consistency_score]
-        if not run.divergences:
-            writer.writerow([_csv_safe(v) for v in base + [''] * 6])
-        for d in run.divergences:
-            writer.writerow([_csv_safe(v) for v in base + [
-                d.get('source_a', ''), d.get('source_b', ''), d.get('divergence_type', ''),
-                d.get('severity', ''), d.get('detail', ''), d.get('recommendation', ''),
-            ]])
     return response
 
 

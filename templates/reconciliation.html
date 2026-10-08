@@ -128,6 +128,7 @@
 <div class="card">
     <div class="card-header">
         <h2>&#128337; Recent Reconciliation Runs</h2>
+        {% include '_export_links.html' with dataset='reconciliation' label='Export latest findings' %}
     </div>
     {% if recent_runs %}
     <div class="table-wrapper">

@@ -106,7 +106,7 @@
 <div class="card">
     <div class="card-header">
         <h2>&#128279; All Semantic Mappings</h2>
-        <span class="text-muted text-sm">{{ definitions|length }} mappings</span>
+        <span class="text-muted text-sm">{{ definitions|length }} mappings &middot; {% include '_export_links.html' with dataset='semantic-definitions' %}</span>
     </div>
 
     {% if definitions %}
