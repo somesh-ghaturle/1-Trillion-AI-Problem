@@ -33,34 +33,5 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Optional: docker compose --profile monitoring up  (needs METRICS_TOKEN set)
-  prometheus:
-    image: prom/prometheus:v3.5.0
-    profiles: [monitoring]
-    environment:
-      - METRICS_TOKEN=${METRICS_TOKEN:-}
-    entrypoint: ["sh", "-c", "printf %s \"$$METRICS_TOKEN\" > /tmp/metrics_token && exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"]
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prom-data:/prometheus
-    ports:
-      - "9090:9090"
-    depends_on: [web]
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:12.1.0
-    profiles: [monitoring]
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    ports:
-      - "3000:3000"
-    depends_on: [prometheus]
-    restart: unless-stopped
-
 volumes:
   pg-data:
-  prom-data:

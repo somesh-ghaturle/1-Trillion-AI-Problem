@@ -1,0 +1,36 @@
+# Prometheus + Grafana for the app. Opt-in, and both secrets are required:
+#   METRICS_TOKEN=... GRAFANA_PASSWORD=... docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+# Ports are bound to localhost only; put a reverse proxy with auth in front to expose them.
+services:
+  web:
+    environment:
+      - METRICS_TOKEN=${METRICS_TOKEN:?set METRICS_TOKEN (shared by the app and Prometheus)}
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    environment:
+      - METRICS_TOKEN=${METRICS_TOKEN:?set METRICS_TOKEN}
+    entrypoint: ["sh", "-c", "printf %s \"$$METRICS_TOKEN\" > /tmp/metrics_token && exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on: [web]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+volumes:
+  prom-data:
