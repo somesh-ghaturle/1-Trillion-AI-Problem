@@ -121,10 +121,14 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        # No BasicAuthentication: it checks passwords on every endpoint with no throttle
         'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
+    # Client IP for throttling. Unset, DRF trusts the whole client-supplied X-Forwarded-For,
+    # so rotating it bypasses rate limits. Production sits behind one TLS proxy (see
+    # SECURE_PROXY_SSL_HEADER); with no proxy (local / docker-compose) use REMOTE_ADDR.
+    'NUM_PROXIES': int(os.environ.get('DJANGO_NUM_PROXIES', '0' if DEBUG else '1')),
     # ponytail: LocMemCache is per gunicorn worker, so the effective limit is rate x workers; use Redis cache if that matters
     'DEFAULT_THROTTLE_RATES': {'token': '10/min'},
     'DEFAULT_RENDERER_CLASSES': [

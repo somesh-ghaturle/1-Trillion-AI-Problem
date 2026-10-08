@@ -100,3 +100,35 @@ class TokenAuthTest(TestCase):
         cache.clear()
         self.assertEqual(statuses[-1], 429)
         self.assertNotIn(429, statuses[:10])
+
+
+class ThrottleBypassTest(TestCase):
+    def tearDown(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def hammer(self, forwarded_for):
+        from django.core.cache import cache
+        cache.clear()
+        return [APIClient().post('/api/auth/token/', {'username': 'x', 'password': 'y'},
+                                 HTTP_X_FORWARDED_FOR=forwarded_for(i)).status_code for i in range(11)]
+
+    def test_rotating_forwarded_for_without_proxy_still_throttled(self):
+        from django.test import override_settings
+        from django.conf import settings
+        with override_settings(REST_FRAMEWORK={**settings.REST_FRAMEWORK, 'NUM_PROXIES': 0}):
+            self.assertEqual(self.hammer(lambda i: f'203.0.113.{i}')[-1], 429)
+
+    def test_rotating_spoofed_prefix_behind_proxy_still_throttled(self):
+        # Proxy appends the real client IP last; attacker controls only the earlier entries
+        from django.test import override_settings
+        from django.conf import settings
+        with override_settings(REST_FRAMEWORK={**settings.REST_FRAMEWORK, 'NUM_PROXIES': 1}):
+            self.assertEqual(self.hammer(lambda i: f'203.0.113.{i}, 198.51.100.7')[-1], 429)
+
+    def test_basic_auth_not_accepted(self):
+        import base64
+        User.objects.create_superuser('root', password='pw')
+        resp = APIClient().post('/api/v1/sources/', {'name': 'x', 'source_type': 'database'},
+                                HTTP_AUTHORIZATION='Basic ' + base64.b64encode(b'root:pw').decode())
+        self.assertIn(resp.status_code, (401, 403))

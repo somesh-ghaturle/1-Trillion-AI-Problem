@@ -122,15 +122,16 @@ def run_checks():
     status, _, _ = Browser({'X-Forwarded-Proto': 'https'}).login(origin=https_origin)
     check('login behind HTTPS proxy', status == 302, status)
 
-    # API with Basic auth
-    def basic(password):
-        return {'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + base64.b64encode(f'{USER}:{password}'.encode()).decode()}
+    # Basic auth is not accepted (it would bypass the token endpoint's throttle)
     payload = json.dumps({'name': f'E2E Source {time.time_ns()}', 'source_type': 'database'}).encode()
-    status, _, _ = Browser().request('POST', '/api/v1/sources/', payload, basic(PASSWORD))
-    check('API POST with Basic auth', status == 201, status)
-    status, _, _ = Browser().request('POST', '/api/v1/sources/', payload, basic('wrong-password'))
-    check('API POST with wrong password rejected', status in (401, 403), status)
+    basic = 'Basic ' + base64.b64encode(f'{USER}:{PASSWORD}'.encode()).decode()
+    status, _, _ = Browser().request('POST', '/api/v1/sources/', payload,
+                                     {'Content-Type': 'application/json', 'Authorization': basic})
+    check('API POST with Basic auth rejected', status in (401, 403), status)
+    status, _, _ = Browser().request('POST', '/api/auth/token/',
+                                     json.dumps({'username': USER, 'password': 'wrong-password'}).encode(),
+                                     {'Content-Type': 'application/json'})
+    check('token with wrong password rejected', status == 400, status)
 
     # API with a token
     status, _, body = Browser().request('POST', '/api/auth/token/',

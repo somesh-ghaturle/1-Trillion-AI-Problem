@@ -380,7 +380,9 @@ curl -X POST localhost:8000/api/auth/token/ -d username=alice -d password=...
 curl -H "Authorization: Token 9944b0..." localhost:8000/api/v1/sources/ -d name=Redshift -d source_type=database
 ```
 
-Session and HTTP Basic auth also work for the API. Tokens can be viewed and revoked in **Admin → Auth Token → Tokens**.
+Session auth (the browsable API) also works. HTTP Basic auth is not accepted. Tokens can be viewed and revoked in **Admin → Auth Token → Tokens**.
+
+Rate limits key on the client IP. Behind one TLS proxy (Render, Heroku, Fly) the default is right; set `DJANGO_NUM_PROXIES` if you have a different number of proxies (docker-compose uses `0`).
 
 Open <http://localhost:8000/> to see the dashboard populated with realistic enterprise data demonstrating cross-source inconsistencies.
 
@@ -485,7 +487,7 @@ python manage.py test core.tests.test_views -v 2
 
 ### End-to-end (Docker)
 
-`scripts/e2e.py` exercises the running docker-compose stack over HTTP: every page, CSV export, static files, anonymous-write blocking, login (including behind an HTTPS proxy), UI writes, reconciliation runs, and API Basic auth. CI runs it on every push and PR, then checks that a restart and a full `down`/`up` keep the data without re-seeding.
+`scripts/e2e.py` exercises the running docker-compose stack over HTTP: every page, CSV export, static files, anonymous-write blocking, login (including behind an HTTPS proxy), UI writes, reconciliation runs, and API token auth. CI runs it on every push and PR, then checks that a restart and a full `down`/`up` keep the data without re-seeding.
 
 ```bash
 DJANGO_SUPERUSER_USERNAME=admin DJANGO_SUPERUSER_PASSWORD=secret docker compose up --build -d
@@ -588,7 +590,7 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 ## Roadmap
 
 ### Phase 1 — Security & API Polish
-- [x] **Authentication** — Login required for all writes; anonymous users get read-only access (session + Basic auth for API)
+- [x] **Authentication** — Login required for all writes; anonymous users get read-only access (session + token auth for API)
 - [x] **Role-Based Access Control** — Admin / Editor / Viewer roles via Django groups and model permissions, token-based API auth
 - [x] **Swagger/OpenAPI Documentation** — Interactive API docs at `/api/docs/` using `drf-spectacular`, auto-generated schema from serializers
 - [ ] **API Rate Limiting & Throttling** — DRF throttling classes for public and authenticated endpoints
