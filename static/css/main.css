@@ -258,6 +258,7 @@ body {
 .main-content {
     margin-left: 260px;
     flex: 1;
+    min-width: 0;  /* flex item: shrink to the viewport so wide tables scroll inside .table-wrapper */
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -281,10 +282,12 @@ body {
     display: flex;
     align-items: center;
     gap: 1rem;
+    min-width: 0;
 }
 
 .breadcrumb {
     display: flex;
+    flex-wrap: wrap;  /* long trails wrap instead of widening the page on small phones */
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
@@ -1014,6 +1017,9 @@ a:hover {
 .justify-between { justify-content: space-between; }
 .flex-wrap { flex-wrap: wrap; }
 
+/* Grid items default to min-width: auto and would grow to fit wide content */
+.grid-2 > *, .grid-3 > *, .grid-4 > *, .stats-grid > * { min-width: 0; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1024px) {
     .grid-2 { grid-template-columns: 1fr; }
@@ -1031,6 +1037,10 @@ a:hover {
 
     .sidebar-toggle {
         display: flex;
+    }
+
+    .sidebar-header {
+        padding-left: 4.25rem;  /* clear the fixed menu button */
     }
 
     .main-content {
@@ -1067,6 +1077,8 @@ a:hover {
 }
 
 @media (max-width: 480px) {
+    .problem-badge { display: none; }  /* decorative; the breadcrumb needs the room */
+
     .stats-grid {
         grid-template-columns: 1fr;
     }
