@@ -17,12 +17,14 @@ from .models import (
     DataSource, ValidationResult, TrustScore, GovernanceMetric,
     SemanticDefinition, ReconciliationRun, DataLineage,
 )
-from .utils import DataQualityValidator, TrustScoringEngine, ReconciliationEngine
+from .utils import DataQualityValidator, TrustScoringEngine
 from .utils.osi_export import export_osi_spec, import_osi_spec
 from .utils.dbt_import import import_metrics, load_texts
 from .exports import export_view
 from .utils.bulk_import import import_semantic_csv
 from .utils.insights import detect_anomalies, forecast
+from .tasks import run_reconciliation_task
+from django.conf import settings
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -461,60 +463,19 @@ def reconciliation_dashboard(request):
 
 @permission_required_for_post('core.add_reconciliationrun')
 def run_reconciliation(request):
-    """Run reconciliation for all metrics or a specific one."""
+    """Run reconciliation for all metrics or a specific one (in the background when Celery is configured)."""
     if request.method != 'POST':
         return redirect('reconciliation_dashboard')
-
     metric_id = request.POST.get('metric_id')
-    engine = ReconciliationEngine()
-
     if metric_id:
-        # Reconcile a single metric
-        metric = get_object_or_404(GovernanceMetric, pk=metric_id)
-        metrics_qs = GovernanceMetric.objects.filter(pk=metric_id)
+        get_object_or_404(GovernanceMetric, pk=metric_id)
+    result = run_reconciliation_task.delay([int(metric_id)] if metric_id else None)
+    if settings.CELERY_TASK_ALWAYS_EAGER:
+        runs = ReconciliationRun.objects.filter(pk__in=result.result)
+        divergent = sum(1 for r in runs if r.status == 'divergent')
+        messages.success(request, f'Reconciliation complete! {len(runs)} metrics analyzed, {divergent} divergent.')
     else:
-        # Reconcile all
-        metrics_qs = GovernanceMetric.objects.filter(is_active=True)
-
-    definitions_qs = SemanticDefinition.objects.select_related('governance_metric', 'source')
-    results = engine.reconcile_all(metrics_qs, definitions_qs)
-
-    # Save results
-    for result in results:
-        metric = GovernanceMetric.objects.get(name=result.metric_name)
-        run = ReconciliationRun.objects.create(
-            governance_metric=metric,
-            status=result.status,
-            total_sources=result.total_sources,
-            consistent_sources=result.consistent_sources,
-            divergent_sources=result.divergent_sources,
-            consistency_score=result.consistency_score,
-            divergences=[d.to_dict() for d in result.divergences],
-            recommendations=result.recommendations,
-        )
-        # Link compared sources
-        source_names = set()
-        for d in result.divergences:
-            source_names.add(d.source_a)
-            source_names.add(d.source_b)
-        sources = DataSource.objects.filter(name__in=source_names)
-        run.sources_compared.set(sources)
-
-        # Update consistency flags on semantic definitions
-        for defn in SemanticDefinition.objects.filter(governance_metric=metric):
-            is_consistent = defn.source.name not in {
-                d.source_b for d in result.divergences
-            }
-            defn.is_consistent = is_consistent
-            defn.last_verified = timezone.now()
-            defn.save(update_fields=['is_consistent', 'last_verified'])
-
-    count = len(results)
-    divergent = sum(1 for r in results if r.status == 'divergent')
-    messages.success(
-        request,
-        f'Reconciliation complete! {count} metrics analyzed, {divergent} divergent.'
-    )
+        messages.success(request, 'Reconciliation started in the background. Results appear here in a few seconds.')
     return redirect('reconciliation_dashboard')
 
 

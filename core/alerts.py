@@ -62,11 +62,13 @@ def deliver(kind, title, details):
 def notify(kind, title, details):
     if getattr(_state, 'suppressed', False):
         return
-    transaction.on_commit(lambda: dispatch(kind, title, details))
+    # robust: a broker outage is logged instead of failing the request that already committed
+    transaction.on_commit(lambda: dispatch(kind, title, details), robust=True)
 
 
 def dispatch(kind, title, details):
-    deliver(kind, title, details)  # replaced by a background task when Celery is configured
+    from .tasks import deliver_alert_task
+    deliver_alert_task.delay(kind, title, details)  # inline when no broker is configured
 
 
 def _check_score_drop(source, measure):

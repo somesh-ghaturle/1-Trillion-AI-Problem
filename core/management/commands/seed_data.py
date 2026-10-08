@@ -15,7 +15,7 @@ from core.models import (
     SemanticDefinition, ReconciliationRun, DataLineage,
 )
 from core import alerts
-from core.utils.reconciliation import ReconciliationEngine
+from core.tasks import reconcile_and_save
 
 
 class Command(BaseCommand):
@@ -724,34 +724,4 @@ class Command(BaseCommand):
 
     def _run_reconciliation(self, metrics):
         self.stdout.write('Running reconciliation engine...')
-        engine = ReconciliationEngine()
-        all_metrics = GovernanceMetric.objects.filter(is_active=True)
-        all_defs = SemanticDefinition.objects.select_related('governance_metric', 'source')
-        results = engine.reconcile_all(all_metrics, all_defs)
-
-        for result in results:
-            metric = GovernanceMetric.objects.get(name=result.metric_name)
-            run = ReconciliationRun.objects.create(
-                governance_metric=metric,
-                status=result.status,
-                total_sources=result.total_sources,
-                consistent_sources=result.consistent_sources,
-                divergent_sources=result.divergent_sources,
-                consistency_score=result.consistency_score,
-                divergences=[d.to_dict() for d in result.divergences],
-                recommendations=result.recommendations,
-            )
-            source_names = set()
-            for d in result.divergences:
-                source_names.add(d.source_a)
-                source_names.add(d.source_b)
-            run.sources_compared.set(DataSource.objects.filter(name__in=source_names))
-
-            # Update consistency flags
-            for defn in SemanticDefinition.objects.filter(governance_metric=metric):
-                is_consistent = defn.source.name not in {
-                    d.source_b for d in result.divergences
-                }
-                defn.is_consistent = is_consistent
-                defn.last_verified = timezone.now()
-                defn.save(update_fields=['is_consistent', 'last_verified'])
+        reconcile_and_save()

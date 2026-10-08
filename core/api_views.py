@@ -22,7 +22,7 @@ from .serializers import (
     SemanticDefinitionSerializer, ReconciliationRunSerializer,
     DataLineageSerializer,
 )
-from .utils import DataQualityValidator, TrustScoringEngine, ReconciliationEngine
+from .utils import DataQualityValidator, TrustScoringEngine
 from .utils.osi_export import export_osi_spec, import_osi_spec
 
 logger = logging.getLogger(__name__)
@@ -186,34 +186,15 @@ class ReconciliationRunViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='run')
     def run_reconciliation(self, request):
-        """Run reconciliation for all metrics or a specific one."""
+        """Run reconciliation for all metrics or one (`metric_id`). 202 + task id when queued to a worker."""
+        from django.conf import settings
+        from .tasks import run_reconciliation_task
         metric_id = request.data.get('metric_id')
-        engine = ReconciliationEngine()
-
-        if metric_id:
-            metrics_qs = GovernanceMetric.objects.filter(pk=metric_id, is_active=True)
-        else:
-            metrics_qs = GovernanceMetric.objects.filter(is_active=True)
-
-        definitions_qs = SemanticDefinition.objects.select_related('governance_metric', 'source')
-        results = engine.reconcile_all(metrics_qs, definitions_qs)
-
-        saved = []
-        for result in results:
-            metric = GovernanceMetric.objects.get(name=result.metric_name)
-            run = ReconciliationRun.objects.create(
-                governance_metric=metric,
-                status=result.status,
-                total_sources=result.total_sources,
-                consistent_sources=result.consistent_sources,
-                divergent_sources=result.divergent_sources,
-                consistency_score=result.consistency_score,
-                divergences=[d.to_dict() for d in result.divergences],
-                recommendations=result.recommendations,
-            )
-            saved.append(ReconciliationRunSerializer(run).data)
-
-        return Response({'reconciliations': saved, 'count': len(saved)})
+        result = run_reconciliation_task.delay([int(metric_id)] if metric_id else None)
+        if not settings.CELERY_TASK_ALWAYS_EAGER:
+            return Response({'status': 'queued', 'task_id': result.id}, status=status.HTTP_202_ACCEPTED)
+        runs = ReconciliationRun.objects.filter(pk__in=result.result).select_related('governance_metric')
+        return Response({'reconciliations': ReconciliationRunSerializer(runs, many=True).data, 'count': len(runs)})
 
 
 class DataLineageViewSet(viewsets.ModelViewSet):

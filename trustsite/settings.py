@@ -134,6 +134,17 @@ if os.environ.get('EMAIL_HOST'):
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Celery + Redis (optional). REDIS_URL set: tasks go to the worker and Redis is the shared cache
+# (so rate limits count across gunicorn workers). Unset: tasks run inline, local-memory cache.
+REDIS_URL = os.environ.get('REDIS_URL', '')
+CELERY_BROKER_URL = REDIS_URL or 'memory://'
+CELERY_RESULT_BACKEND = None
+CELERY_TASK_ALWAYS_EAGER = not REDIS_URL
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_ACKS_LATE = True
+if REDIS_URL and not TESTING:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': REDIS_URL}}
+
 # Prometheus scrape token for /metrics; unset = endpoint disabled (404)
 METRICS_TOKEN = os.environ.get('METRICS_TOKEN', '')
 

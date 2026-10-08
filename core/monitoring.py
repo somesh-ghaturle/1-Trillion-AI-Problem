@@ -22,7 +22,15 @@ def healthz(request):
             cursor.execute('SELECT 1')
     except Exception:  # any DB failure means unhealthy
         return JsonResponse({'status': 'error', 'database': 'unreachable'}, status=503)
-    return JsonResponse({'status': 'ok', 'database': 'ok'})
+    body = {'status': 'ok', 'database': 'ok'}
+    if settings.REDIS_URL:  # the task broker; jobs and alerts stall without it
+        try:
+            import redis
+            redis.Redis.from_url(settings.REDIS_URL, socket_timeout=2).ping()
+            body['broker'] = 'ok'
+        except Exception:
+            return JsonResponse({**body, 'status': 'error', 'broker': 'unreachable'}, status=503)
+    return JsonResponse(body)
 
 
 class AppMetricsCollector:
