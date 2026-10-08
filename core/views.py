@@ -21,6 +21,7 @@ from .utils import DataQualityValidator, TrustScoringEngine, ReconciliationEngin
 from .utils.osi_export import export_osi_spec, import_osi_spec
 from .utils.dbt_import import import_metrics, load_texts
 from .exports import export_view
+from .utils.bulk_import import import_semantic_csv
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -355,6 +356,33 @@ def dbt_import_view(request):
         messages.error(request, error)
     if not (imported or unmatched or stats['errors']):
         messages.warning(request, 'No dbt metrics found in the uploaded files.')
+    return redirect('semantic_definitions')
+
+
+BULK_MAX_BYTES = 2 * 1024 * 1024
+
+
+@permission_required_for_post('core.add_semanticdefinition')
+def bulk_import_view(request):
+    """Upload a CSV of semantic mappings (same columns as the semantic-definitions export)."""
+    if request.method != 'POST':
+        return redirect('semantic_definitions')
+    f = request.FILES.get('csv_file')
+    if not f or not f.name.lower().endswith('.csv'):
+        messages.error(request, 'Choose a .csv file.')
+    elif f.size > BULK_MAX_BYTES:
+        messages.error(request, f'{f.name}: larger than 2 MB.')
+    else:
+        try:
+            stats = import_semantic_csv(f.read().decode('utf-8-sig'))  # -sig: Excel's UTF-8 BOM
+        except UnicodeDecodeError:
+            messages.error(request, f'{f.name}: not UTF-8 text.')
+            return redirect('semantic_definitions')
+        if stats['errors']:
+            messages.error(request, f'Nothing imported, {len(stats["errors"])} problem(s): ' + ' | '.join(stats['errors'][:10]))
+        else:
+            messages.success(request, f'Imported {stats["created"]} new and updated {stats["updated"]} existing mapping(s). '
+                                      'Run reconciliation to compare.')
     return redirect('semantic_definitions')
 
 

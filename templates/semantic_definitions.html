@@ -43,6 +43,24 @@
     </form>
 </div>
 
+<!-- Bulk CSV import -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128203; Bulk Import (CSV)</h2>
+        {% include '_export_links.html' with dataset='semantic-definitions' label='Start from an export' %}
+    </div>
+    <p class="text-muted mb-2">
+        Columns: <code>governance_metric_name</code>, <code>source_name</code>, <code>local_name</code>,
+        <code>local_formula</code>, <code>local_description</code> (the same as the export, so you can edit one and upload it back).
+        Existing mappings are updated. If any row has a problem, nothing is imported.
+    </p>
+    <form method="post" action="{% url 'bulk_import' %}" enctype="multipart/form-data" class="d-flex align-center gap-1 flex-wrap">
+        {% csrf_token %}
+        <input type="file" name="csv_file" accept=".csv" required aria-label="Semantic mappings CSV file">
+        <button type="submit" class="btn">&#11014; Import CSV</button>
+    </form>
+</div>
+
 <!-- Add Definition Form -->
 <div class="card">
     <div class="card-header">
