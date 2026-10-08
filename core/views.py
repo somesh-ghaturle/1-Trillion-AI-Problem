@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db.models import Avg, Count
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from datetime import timedelta
 
@@ -42,6 +43,33 @@ def permission_required_for_post(perm):
 # ──────────────────────────────────────────────
 # Dashboard
 # ──────────────────────────────────────────────
+
+def _daily_average(queryset, date_field, value_field, since):
+    """{date: average of value_field} for rows on or after `since`, one entry per day."""
+    rows = (queryset.filter(**{f'{date_field}__gte': since})
+            .annotate(day=TruncDate(date_field)).values('day')
+            .annotate(avg=Avg(value_field)).order_by('day'))
+    return {row['day']: round(row['avg'], 1) for row in rows}
+
+
+def health_trend(days=30):
+    """Daily trust, data quality, and reconciliation consistency (all 0-100) for the dashboard chart."""
+    since = timezone.now() - timedelta(days=days)
+    series = [
+        ('Trust score', _daily_average(TrustScore.objects, 'calculated_at', 'overall_score', since)),
+        ('Data quality', _daily_average(ValidationResult.objects, 'timestamp', 'quality_score', since)),
+        ('Reconciliation consistency', _daily_average(ReconciliationRun.objects, 'run_at', 'consistency_score', since)),
+    ]
+    seen = set().union(*(values for _, values in series))
+    # Every calendar day between first and last, so the x-axis spaces time evenly (gaps = no data)
+    dates = [min(seen) + timedelta(days=i) for i in range((max(seen) - min(seen)).days + 1)] if seen else []
+    return {
+        'labels': [d.isoformat() for d in dates],
+        'series': [{'name': name, 'values': [values.get(d) for d in dates]} for name, values in series],
+        'rows': [[d] + [values.get(d) for _, values in series] for d in reversed(dates)
+                 if any(d in values for _, values in series)],
+    }
+
 
 def dashboard(request):
     """Main dashboard showing overall health, recent activity, and reconciliation status."""
@@ -94,6 +122,7 @@ def dashboard(request):
         'dim_timeliness': round(dimension_avgs['avg_timeliness'] or 0, 1),
         'dim_validity': round(dimension_avgs['avg_validity'] or 0, 1),
         'dim_uniqueness': round(dimension_avgs['avg_uniqueness'] or 0, 1),
+        'health_trend': health_trend(),
     }
 
     return render(request, 'dashboard.html', context)

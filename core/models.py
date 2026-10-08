@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
@@ -31,7 +32,7 @@ class DataSource(models.Model):
 class ValidationResult(models.Model):
     """Stores data quality validation results"""
     source = models.ForeignKey(DataSource, on_delete=models.CASCADE, related_name='validations')
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(default=timezone.now)
     passed = models.BooleanField(default=False)
     quality_score = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
@@ -76,7 +77,7 @@ class TrustScore(models.Model):
 
     issues = models.JSONField(default=list, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
-    calculated_at = models.DateTimeField(auto_now=True)
+    calculated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.source.name}: {self.overall_score:.1f} ({self.trust_level})"
@@ -196,7 +197,7 @@ class ReconciliationRun(models.Model):
         default=list, blank=True,
         help_text='Suggested actions to resolve divergences'
     )
-    run_at = models.DateTimeField(auto_now_add=True)
+    run_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"Reconciliation: {self.governance_metric.name} ({self.status})"
