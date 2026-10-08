@@ -741,6 +741,11 @@ tr:last-child td { border-bottom: none; }
     color: var(--text-muted);
 }
 
+/* Dashboard anomaly / outlook lists */
+.insight-list { list-style: none; margin: 0; padding: 0; }
+.insight-list li { padding: 0.6rem 0; border-bottom: 1px solid var(--border-light); line-height: 1.6; }
+.insight-list li:last-child { border-bottom: 0; }
+
 /* Search / filter row above a list: GET form, wraps on small screens */
 .filter-bar {
     display: flex;

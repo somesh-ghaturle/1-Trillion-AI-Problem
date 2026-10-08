@@ -22,6 +22,7 @@ from .utils.osi_export import export_osi_spec, import_osi_spec
 from .utils.dbt_import import import_metrics, load_texts
 from .exports import export_view
 from .utils.bulk_import import import_semantic_csv
+from .utils.insights import detect_anomalies, forecast
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,9 @@ def health_trend(days=30):
     dates = [min(seen) + timedelta(days=i) for i in range((max(seen) - min(seen)).days + 1)] if seen else []
     return {
         'labels': [d.isoformat() for d in dates],
-        'series': [{'name': name, 'values': [values.get(d) for d in dates]} for name, values in series],
+        'series': [{'name': name, 'values': [values.get(d) for d in dates],
+                    'forecast': forecast(sorted(values), [values[d] for d in sorted(values)])}
+                   for name, values in series],
         'rows': [[d] + [values.get(d) for _, values in series] for d in reversed(dates)
                  if any(d in values for _, values in series)],
     }
@@ -125,6 +128,7 @@ def dashboard(request):
         'dim_validity': round(dimension_avgs['avg_validity'] or 0, 1),
         'dim_uniqueness': round(dimension_avgs['avg_uniqueness'] or 0, 1),
         'health_trend': health_trend(),
+        'anomalies': detect_anomalies(),
     }
 
     return render(request, 'dashboard.html', context)

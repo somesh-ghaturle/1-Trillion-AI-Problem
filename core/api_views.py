@@ -248,3 +248,17 @@ class ThrottledObtainAuthToken(ObtainAuthToken):
 def client_ip(request):
     """Client IP honouring REST_FRAMEWORK['NUM_PROXIES'], so a spoofed X-Forwarded-For is ignored."""
     return BaseThrottle().get_ident(request)
+
+
+@extend_schema(responses=OpenApiTypes.OBJECT)
+@api_view(['GET'])
+@permission_classes([AllowAny])  # read-only; no model queryset for model permissions
+def insights(request):
+    """Anomalous score drops per source, and a 7-day linear outlook for the daily health series."""
+    from .utils.insights import detect_anomalies
+    from .views import health_trend
+    trend = health_trend()
+    return Response({
+        'anomalies': [a.to_dict() for a in detect_anomalies()],
+        'outlook': {s['name']: s['forecast'] for s in trend['series']},
+    })

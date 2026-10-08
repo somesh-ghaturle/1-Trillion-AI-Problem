@@ -579,7 +579,7 @@ class Command(BaseCommand):
                 (81.2, True, 8, 7, 1),
             ],
             'Google BigQuery': [
-                (90.5, True, 10, 9, 1),
+                (71.4, True, 10, 7, 3),  # latest run: replication incident (shows up as an anomaly)
                 (88.7, True, 10, 9, 1),
                 (92.1, True, 10, 9, 1),
                 (86.3, True, 10, 9, 1),
