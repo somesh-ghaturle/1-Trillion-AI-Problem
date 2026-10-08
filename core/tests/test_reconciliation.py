@@ -340,3 +340,47 @@ class StructuralFormulaDiffTest(TestCase):
         result = ReconciliationEngine().reconcile_metric(metric, metric.semantic_definitions.all())
         self.assertEqual([(d.divergence_type, d.severity) for d in result.divergences], [('filter', 'high')])
         self.assertIn("'pending'", result.divergences[0].detail)
+
+
+class ReconciliationCSVTest(TestCase):
+    def test_latest_run_exported_one_row_per_divergence(self):
+        import csv, io
+        metric = GovernanceMetric.objects.create(
+            name='total_revenue', display_name='Total Revenue', description='', data_type='numeric',
+        )
+        ReconciliationRun.objects.create(governance_metric=metric, status='consistent', divergences=[])
+        ReconciliationRun.objects.create(governance_metric=metric, status='divergent', divergences=[
+            {'source_a': 'Standard', 'source_b': 'Tableau', 'divergence_type': 'filter',
+             'severity': 'high', 'detail': "also includes 'pending'", 'recommendation': 'align'},
+            {'source_a': 'Standard', 'source_b': 'Stripe', 'divergence_type': 'formula',
+             'severity': 'critical', 'detail': 'measure differs', 'recommendation': 'align'},
+        ])
+        resp = self.client.get(reverse('reconciliation_csv'))
+        self.assertEqual(resp['Content-Type'], 'text/csv')
+        rows = list(csv.DictReader(io.StringIO(resp.content.decode())))
+        self.assertEqual([r['source_b'] for r in rows], ['Tableau', 'Stripe'])
+        self.assertEqual(rows[0]['status'], 'divergent')
+
+    def test_formula_like_cells_are_neutralized(self):
+        import csv, io
+        metric = GovernanceMetric.objects.create(
+            name='m', display_name='M', description='', data_type='numeric',
+        )
+        ReconciliationRun.objects.create(governance_metric=metric, status='divergent', divergences=[
+            {'source_a': '=HYPERLINK("http://evil")', 'source_b': '@SUM(A1)', 'detail': 'ok'},
+        ])
+        row = next(csv.DictReader(io.StringIO(self.client.get(reverse('reconciliation_csv')).content.decode())))
+        self.assertEqual(row['source_a'], '\'=HYPERLINK("http://evil")')
+        self.assertEqual(row['source_b'], "'@SUM(A1)")
+        self.assertEqual(row['detail'], 'ok')
+
+    def test_page_shows_divergence_detail(self):
+        metric = GovernanceMetric.objects.create(
+            name='m', display_name='M', description='', data_type='numeric',
+        )
+        ReconciliationRun.objects.create(governance_metric=metric, status='divergent', divergences=[
+            {'source_a': 'A', 'source_b': 'B', 'severity': 'high', 'detail': 'filter on status also includes pending'},
+        ])
+        resp = self.client.get(reverse('reconciliation_dashboard'))
+        self.assertContains(resp, 'filter on status also includes pending')
+        self.assertContains(resp, reverse('reconciliation_csv'))

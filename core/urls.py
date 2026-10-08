@@ -29,6 +29,7 @@ urlpatterns = [
     # Reconciliation
     path('reconciliation/', views.reconciliation_dashboard, name='reconciliation_dashboard'),
     path('reconciliation/run/', views.run_reconciliation, name='run_reconciliation'),
+    path('reconciliation/export.csv', views.reconciliation_csv, name='reconciliation_csv'),
 
     # Data Lineage
     path('lineage/', views.lineage_view, name='lineage'),
