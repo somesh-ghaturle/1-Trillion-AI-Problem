@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: trust-control-center
+    folder: Trust Control Center
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

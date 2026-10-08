@@ -29,10 +29,12 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_spectacular',
     'axes',
+    'django_prometheus',
     'core',
 ]
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -42,7 +44,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'axes.middleware.AxesMiddleware',  # must be last
+    'axes.middleware.AxesMiddleware',  # last except the Prometheus timer, which must wrap everything
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -84,7 +87,7 @@ def database_from_url(url):
     if parts.scheme not in ('postgres', 'postgresql'):
         raise ImproperlyConfigured(f'DATABASE_URL must be a postgres:// URL, got {parts.scheme}://')
     return {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_prometheus.db.backends.postgresql',  # postgresql + query metrics
         'NAME': unquote(parts.path.lstrip('/')),
         'USER': unquote(parts.username or ''),
         'PASSWORD': unquote(parts.password or ''),
@@ -102,7 +105,7 @@ if os.environ.get('DATABASE_URL'):
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
             'NAME': os.environ.get('DJANGO_DB_PATH', BASE_DIR / 'db.sqlite3'),
         }
     }
@@ -116,6 +119,9 @@ USE_TZ = True
 
 LOGIN_URL = 'rest_framework:login'
 LOGIN_REDIRECT_URL = '/'
+
+# Prometheus scrape token for /metrics; unset = endpoint disabled (404)
+METRICS_TOKEN = os.environ.get('METRICS_TOKEN', '')
 
 # Static files
 STATIC_URL = '/static/'

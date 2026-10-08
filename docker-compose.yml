@@ -22,15 +22,45 @@ services:
       - DATABASE_URL=postgres://trust:${POSTGRES_PASSWORD:-trust}@db:5432/trust
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production}
       - DJANGO_DEBUG=${DJANGO_DEBUG:-0}
-      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web}
       - DJANGO_NUM_PROXIES=${DJANGO_NUM_PROXIES:-0}
       - DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME:-}
       - DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-}
       - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+      - METRICS_TOKEN=${METRICS_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
 
+  # Optional: docker compose --profile monitoring up  (needs METRICS_TOKEN set)
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [monitoring]
+    environment:
+      - METRICS_TOKEN=${METRICS_TOKEN:-}
+    entrypoint: ["sh", "-c", "printf %s \"$$METRICS_TOKEN\" > /tmp/metrics_token && exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on: [web]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: [monitoring]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on: [prometheus]
+    restart: unless-stopped
+
 volumes:
   pg-data:
+  prom-data:
