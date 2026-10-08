@@ -1,10 +1,11 @@
+import csv
 import json
 import io
 import logging
 from functools import wraps
 
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.db.models import Avg, Count
@@ -357,6 +358,31 @@ def run_reconciliation(request):
         f'Reconciliation complete! {count} metrics analyzed, {divergent} divergent.'
     )
     return redirect('reconciliation_dashboard')
+
+
+def reconciliation_csv(request):
+    """Download the latest run per metric as CSV, one row per divergence."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="reconciliation_results.csv"'
+    writer = csv.writer(response)
+    writer.writerow([
+        'metric', 'run_at', 'status', 'consistency_score',
+        'source_a', 'source_b', 'divergence_type', 'severity', 'detail', 'recommendation',
+    ])
+    # ponytail: one query per metric; fine for tens of metrics, use a Subquery if this grows to thousands
+    for metric in GovernanceMetric.objects.filter(is_active=True).order_by('name'):
+        run = metric.reconciliations.order_by('-run_at', '-pk').first()
+        if not run:
+            continue
+        base = [metric.name, run.run_at.isoformat(), run.status, run.consistency_score]
+        if not run.divergences:
+            writer.writerow(base + [''] * 6)
+        for d in run.divergences:
+            writer.writerow(base + [
+                d.get('source_a', ''), d.get('source_b', ''), d.get('divergence_type', ''),
+                d.get('severity', ''), d.get('detail', ''), d.get('recommendation', ''),
+            ])
+    return response
 
 
 # ──────────────────────────────────────────────

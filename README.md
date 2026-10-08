@@ -324,6 +324,7 @@ flowchart LR
 | Governance | `/governance/` | Define canonical metrics (the single source of truth) |
 | Semantic Mappings | `/semantic/` | Map how metrics are implemented per source system |
 | Reconciliation | `/reconciliation/` | Run cross-source comparison, view divergences |
+| Reconciliation CSV | `/reconciliation/export.csv` | Latest run per metric, one row per divergence |
 | Data Lineage | `/lineage/` | Track data flows between systems |
 | OSI Export | `/osi/` | Export/import semantic model as vendor-neutral JSON |
 | API Browser | `/api/v1/` | Interactive REST API explorer |
@@ -440,7 +441,7 @@ python manage.py export_governance
 ## Tests
 
 ```bash
-# Run all 65 tests
+# Run all 67 tests
 python manage.py test core -v 2
 
 # Run specific test modules
@@ -557,7 +558,8 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 
 ### Phase 3 — Analytics & Export
 - [ ] **Historical Trend Analytics** — Track trust score changes over time, anomaly detection on quality metrics, trend forecasting
-- [ ] **CSV / Excel / Parquet Export** — Export reconciliation results, trust scores, and governance metrics in multiple formats beyond JSON/OSI
+- [x] **CSV Export of Reconciliation Results** — `/reconciliation/export.csv`
+- [ ] **More Export Formats** — Trust scores and governance metrics as CSV / Excel / Parquet
 - [ ] **Bulk Import & Batch Operations** — Batch upload of semantic definitions, bulk reconciliation across all metrics
 
 ### Phase 4 — UX & Usability
