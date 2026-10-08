@@ -202,7 +202,9 @@ def governance_metrics(request):
         category = request.POST.get('category', '')
         owner = request.POST.get('owner', '')
 
-        if name and display_name:
+        if name and GovernanceMetric.objects.filter(name=name).exists():
+            messages.error(request, f'A metric named "{name}" already exists.')
+        elif name and display_name:
             GovernanceMetric.objects.create(
                 name=name,
                 display_name=display_name,
