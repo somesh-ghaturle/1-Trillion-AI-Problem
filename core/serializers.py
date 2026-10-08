@@ -44,7 +44,7 @@ class GovernanceMetricSerializer(serializers.ModelSerializer):
         model = GovernanceMetric
         fields = '__all__'
 
-    def get_source_count(self, obj):
+    def get_source_count(self, obj) -> int:
         return obj.semantic_definitions.count()
 
 

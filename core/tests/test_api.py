@@ -114,3 +114,11 @@ class APIHealthTest(TestCase):
         data = resp.json()
         self.assertEqual(data['status'], 'running')
         self.assertIn('total_sources', data)
+
+
+class OpenAPIDocsTest(TestCase):
+    def test_schema_and_swagger_ui(self):
+        schema = self.client.get('/api/schema/')
+        self.assertEqual(schema.status_code, 200)
+        self.assertIn(b'/api/v1/sources/', schema.content)
+        self.assertEqual(self.client.get('/api/docs/').status_code, 200)

@@ -5,6 +5,8 @@ import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from django.utils import timezone
 
 from .models import (
@@ -198,6 +200,7 @@ class DataLineageViewSet(viewsets.ModelViewSet):
     serializer_class = DataLineageSerializer
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 def api_health(request):
     """API health check endpoint."""

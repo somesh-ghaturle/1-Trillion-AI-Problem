@@ -324,6 +324,7 @@ flowchart LR
 | Data Lineage | `/lineage/` | Track data flows between systems |
 | OSI Export | `/osi/` | Export/import semantic model as vendor-neutral JSON |
 | API Browser | `/api/v1/` | Interactive REST API explorer |
+| API Docs | `/api/docs/` | Swagger UI generated from the OpenAPI schema (`/api/schema/`) |
 | Admin Panel | `/admin/` | Django admin for direct data management |
 
 ---
@@ -353,7 +354,7 @@ python manage.py runserver
 
 ### Access Model
 
-Every page and `GET` API endpoint is public and read-only. Creating metrics, uploading CSVs, running reconciliation, importing OSI specs, and all API writes require a logged-in user. Use **Log in** in the sidebar (or `/api/docs/login/`). API clients can use session or HTTP Basic auth.
+Every page and `GET` API endpoint is public and read-only. Creating metrics, uploading CSVs, running reconciliation, importing OSI specs, and all API writes require a logged-in user. Use **Log in** in the sidebar (or `/api/auth/login/`). API clients can use session or HTTP Basic auth.
 
 Open <http://localhost:8000/> to see the dashboard populated with realistic enterprise data demonstrating cross-source inconsistencies.
 
@@ -397,6 +398,8 @@ To create an admin login on startup, set `DJANGO_SUPERUSER_USERNAME` and `DJANGO
 | Endpoint | Methods | Description |
 | -------- | ------- | ----------- |
 | `/api/` | GET | API health check |
+| `/api/schema/` | GET | OpenAPI 3 schema (YAML) |
+| `/api/docs/` | GET | Swagger UI |
 | `/api/v1/sources/` | GET, POST, PUT, DELETE | Data source CRUD |
 | `/api/v1/governance-metrics/` | GET, POST, PUT, DELETE | Governance metric CRUD |
 | `/api/v1/semantic-definitions/` | GET, POST, PUT, DELETE | Semantic definition CRUD |
@@ -502,7 +505,7 @@ Test coverage includes:
 │   └── js/main.js              # Theme toggle, sortable tables, drag-drop
 ├── Dockerfile                  # Python 3.11-slim with Gunicorn
 ├── docker-compose.yml
-├── requirements.txt            # Django, DRF, CORS, WhiteNoise, Gunicorn, pandas
+├── requirements.txt            # Django, DRF, drf-spectacular, CORS, WhiteNoise, Gunicorn, pandas
 ├── .github/workflows/ci.yml   # GitHub Actions CI (Python 3.11/3.12 matrix)
 └── README.md
 ```
@@ -541,7 +544,7 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 ### Phase 1 — Security & API Polish
 - [x] **Authentication** — Login required for all writes; anonymous users get read-only access (session + Basic auth for API)
 - [ ] **Role-Based Access Control** — Admin/viewer roles, token-based API auth, permission scoping per endpoint
-- [ ] **Swagger/OpenAPI Documentation** — Interactive API docs at `/api/docs/` using `drf-spectacular`, auto-generated schema from serializers
+- [x] **Swagger/OpenAPI Documentation** — Interactive API docs at `/api/docs/` using `drf-spectacular`, auto-generated schema from serializers
 - [ ] **API Rate Limiting & Throttling** — DRF throttling classes for public and authenticated endpoints
 
 ### Phase 2 — Production Infrastructure
