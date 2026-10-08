@@ -11,6 +11,9 @@ import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
+import sqlglot
+from sqlglot import exp
+
 
 @dataclass
 class Divergence:
@@ -83,6 +86,80 @@ def _formula_similarity(formula_a, formula_b):
     if not norm_a or not norm_b:
         return 0.0
     return SequenceMatcher(None, norm_a, norm_b).ratio()
+
+
+def _parse_formula(formula):
+    """
+    Parse "<measure> [WHERE <conditions>]" into (measure_sql, set of filter conjuncts).
+    Returns None when the formula isn't parseable SQL, so callers can fall back to text similarity.
+    """
+    try:
+        query = sqlglot.parse_one(f'SELECT {formula}')
+    except sqlglot.errors.ParseError:
+        return None
+    if not isinstance(query, exp.Select) or len(query.expressions) != 1:
+        return None
+    where = query.args.get('where')
+    if where is None:
+        conjuncts = []
+    elif isinstance(where.this, exp.And):
+        conjuncts = list(where.this.flatten())
+    else:
+        conjuncts = [where.this]
+    return query.expressions[0].sql().lower(), {c.sql().lower(): c for c in conjuncts}
+
+
+def _value_filter(condition):
+    """For `col = 'x'` / `col IN ('x', 'y')`, return (column, {values}); else None."""
+    if isinstance(condition, exp.EQ) and isinstance(condition.this, exp.Column):
+        values = [condition.expression]
+    elif isinstance(condition, exp.In) and isinstance(condition.this, exp.Column):
+        values = condition.expressions
+    else:
+        return None
+    if not values or not all(isinstance(v, (exp.Literal, exp.Boolean)) for v in values):
+        return None
+    return condition.this.sql().lower(), {v.sql().lower() for v in values}
+
+
+def _structural_diff(formula_a, formula_b, label_a, label_b):
+    """
+    Compare two formulas by structure rather than text.
+
+    Returns (measure_detail, filter_detail) — each None when that part matches —
+    or None if either formula can't be parsed.
+    """
+    parsed_a, parsed_b = _parse_formula(formula_a), _parse_formula(formula_b)
+    if parsed_a is None or parsed_b is None:
+        return None
+    (measure_a, filters_a), (measure_b, filters_b) = parsed_a, parsed_b
+
+    measure_detail = None
+    if measure_a != measure_b:
+        measure_detail = f'{label_a} computes `{measure_a}` but {label_b} computes `{measure_b}`'
+
+    only_a = {k: v for k, v in filters_a.items() if k not in filters_b}
+    only_b = {k: v for k, v in filters_b.items() if k not in filters_a}
+    parts = []
+
+    # Same column filtered to different values: say exactly which values differ
+    values_a = {vf[0]: (k, vf[1]) for k, c in only_a.items() if (vf := _value_filter(c))}
+    values_b = {vf[0]: (k, vf[1]) for k, c in only_b.items() if (vf := _value_filter(c))}
+    for column in sorted(values_a.keys() & values_b.keys()):
+        key_a, vals_a = values_a[column]
+        key_b, vals_b = values_b[column]
+        if vals_b - vals_a:
+            parts.append(f'{label_b} filter on `{column}` also includes {", ".join(sorted(vals_b - vals_a))}')
+        if vals_a - vals_b:
+            parts.append(f'{label_b} filter on `{column}` omits {", ".join(sorted(vals_a - vals_b))}')
+        del only_a[key_a], only_b[key_b]
+
+    if only_a:
+        parts.append(f'only {label_a} filters on: ' + ' AND '.join(f'`{k}`' for k in only_a))
+    if only_b:
+        parts.append(f'only {label_b} filters on: ' + ' AND '.join(f'`{k}`' for k in only_b))
+
+    return measure_detail, ('; '.join(parts) or None)
 
 
 class ReconciliationEngine:
@@ -185,19 +262,10 @@ class ReconciliationEngine:
 
         # Formula comparison
         if canonical_formula and defn.local_formula:
-            similarity = _formula_similarity(canonical_formula, defn.local_formula)
-            if similarity < self.SIMILARITY_THRESHOLD:
-                issues.append(Divergence(
-                    metric_name=metric.name,
-                    source_a='Governance Standard',
-                    source_b=defn.source.name,
-                    divergence_type='formula',
-                    severity='critical' if similarity < 0.5 else 'high',
-                    detail=f'Formula divergence (similarity: {similarity:.0%}). '
-                           f'Standard: "{canonical_formula}" vs '
-                           f'Source: "{defn.local_formula}"',
-                    recommendation=f'Update {defn.source.name} to use the canonical formula: {canonical_formula}',
-                ))
+            issues.extend(self._formula_divergences(
+                metric, 'Governance Standard', canonical_formula, defn.source.name, defn.local_formula,
+                recommendation=f'Update {defn.source.name} to use the canonical formula: {canonical_formula}',
+            ))
 
         # Naming inconsistency
         if defn.local_name.lower().replace('_', '') != metric.name.lower().replace('_', ''):
@@ -215,26 +283,48 @@ class ReconciliationEngine:
 
         return issues
 
+    def _formula_divergences(self, metric, label_a, formula_a, label_b, formula_b, recommendation):
+        """
+        Structural comparison when both formulas parse as SQL: a different measure is
+        critical, a different WHERE clause is high. Otherwise fall back to text similarity.
+        """
+        def divergence(divergence_type, severity, detail):
+            return Divergence(
+                metric_name=metric.name, source_a=label_a, source_b=label_b,
+                divergence_type=divergence_type, severity=severity,
+                detail=detail, recommendation=recommendation,
+            )
+
+        diff = _structural_diff(formula_a, formula_b, label_a, label_b)
+        if diff is not None:
+            measure_detail, filter_detail = diff
+            issues = []
+            if measure_detail:
+                issues.append(divergence('formula', 'critical', f'Measure differs: {measure_detail}.'))
+            if filter_detail:
+                issues.append(divergence('filter', 'high', f'Filter differs: {filter_detail}.'))
+            return issues
+
+        similarity = _formula_similarity(formula_a, formula_b)
+        if similarity >= self.SIMILARITY_THRESHOLD:
+            return []
+        return [divergence(
+            'formula', 'critical' if similarity < 0.5 else 'high',
+            f'Formula divergence (similarity: {similarity:.0%}; not parseable as SQL, compared as text). '
+            f'{label_a}: "{formula_a}" vs {label_b}: "{formula_b}"',
+        )]
+
     def _compare_definitions(self, metric, defn_a, defn_b):
         """Compare two source definitions against each other."""
         issues = []
 
         # Formula comparison between sources
         if defn_a.local_formula and defn_b.local_formula:
-            similarity = _formula_similarity(defn_a.local_formula, defn_b.local_formula)
-            if similarity < self.SIMILARITY_THRESHOLD:
-                issues.append(Divergence(
-                    metric_name=metric.name,
-                    source_a=defn_a.source.name,
-                    source_b=defn_b.source.name,
-                    divergence_type='formula',
-                    severity='critical' if similarity < 0.5 else 'high',
-                    detail=f'Cross-source formula divergence (similarity: {similarity:.0%}). '
-                           f'{defn_a.source.name}: "{defn_a.local_formula}" vs '
-                           f'{defn_b.source.name}: "{defn_b.local_formula}"',
-                    recommendation=f'Align formulas in {defn_a.source.name} and {defn_b.source.name} '
-                                   f'to match the governance standard.',
-                ))
+            issues.extend(self._formula_divergences(
+                metric, defn_a.source.name, defn_a.local_formula, defn_b.source.name, defn_b.local_formula,
+                recommendation=f'Align formulas in {defn_a.source.name} and {defn_b.source.name} '
+                               f'to match the governance standard.',
+            ))
 
         # Filter comparison
         filters_a = set(str(f) for f in (defn_a.filters or []))

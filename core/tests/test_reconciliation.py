@@ -296,3 +296,47 @@ class NewAPIEndpointsTest(TestCase):
         resp = self.client.get('/api/v1/governance-metrics/osi-export/')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data['osi_version'], '1.0')
+
+
+class StructuralFormulaDiffTest(TestCase):
+    """Formulas are compared by parsed structure, not raw text."""
+
+    def diff(self, a, b):
+        from core.utils.reconciliation import _structural_diff
+        return _structural_diff(a, b, 'Standard', 'Tableau')
+
+    def test_formatting_and_filter_order_ignored(self):
+        self.assertEqual(
+            self.diff("SUM(amount) WHERE status = 'completed' AND region = 'US'",
+                      "sum( amount )  where region='US' and status='completed'"),
+            (None, None),
+        )
+
+    def test_extra_value_in_filter_is_named(self):
+        measure, filters = self.diff("SUM(amount) WHERE status = 'completed'",
+                                     "SUM(amount) WHERE status IN ('completed', 'pending')")
+        self.assertIsNone(measure)
+        self.assertEqual(filters, "Tableau filter on `status` also includes 'pending'")
+
+    def test_missing_filter_and_different_measure(self):
+        measure, filters = self.diff("SUM(amount) WHERE status = 'completed' AND refunded = false",
+                                     "SUM(net_amount) WHERE status = 'completed'")
+        self.assertIn('sum(net_amount)', measure)
+        self.assertEqual(filters, 'only Standard filters on: `refunded = false`')
+
+    def test_unparseable_returns_none(self):
+        self.assertIsNone(self.diff("COUNT(x WAS 'a' AT t)", 'COUNT(x)'))
+
+    def test_engine_flags_filter_only_divergence_as_high(self):
+        metric = GovernanceMetric.objects.create(
+            name='total_revenue', display_name='Total Revenue', description='',
+            formula="SUM(amount) WHERE status = 'completed'", data_type='numeric',
+        )
+        source = DataSource.objects.create(name='Tableau', source_type='tableau')
+        SemanticDefinition.objects.create(
+            governance_metric=metric, source=source, local_name='total_revenue',
+            local_formula="SUM(amount) WHERE status IN ('completed', 'pending')",
+        )
+        result = ReconciliationEngine().reconcile_metric(metric, metric.semantic_definitions.all())
+        self.assertEqual([(d.divergence_type, d.severity) for d in result.divergences], [('filter', 'high')])
+        self.assertIn("'pending'", result.divergences[0].detail)

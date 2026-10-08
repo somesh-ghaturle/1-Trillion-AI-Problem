@@ -91,7 +91,7 @@ flowchart TB
     subgraph Backend["Backend Layer"]
         DV["Django Views<br/>14 View Functions"]
         DRF["Django REST Framework<br/>7 ViewSet Endpoints"]
-        RE["Reconciliation Engine<br/>Formula Comparison via SequenceMatcher"]
+        RE["Reconciliation Engine<br/>SQL-Aware Formula Comparison (sqlglot)"]
         TE["Trust Scoring Engine<br/>6-Dimension Analysis"]
         DQV["Data Quality Validator<br/>CSV Upload and Rule Checks"]
         OSI_EXP["OSI Export/Import<br/>Vendor-Neutral JSON"]
@@ -203,25 +203,27 @@ flowchart TD
     GET_DEFS --> CANONICAL["Compare Against<br/>Canonical Formula"]
     GET_DEFS --> PAIRWISE["Pairwise Comparison<br/>Between Sources"]
 
-    CANONICAL --> NORM["Normalize Formulas<br/>Remove whitespace, lowercase,<br/>standardize SQL"]
-    PAIRWISE --> NORM
+    CANONICAL --> PARSE{"Parse as SQL<br/>(sqlglot)"}
+    PAIRWISE --> PARSE
 
-    NORM --> SIM["Calculate Similarity<br/>SequenceMatcher ratio"]
+    PARSE -->|"parses"| STRUCT["Compare Structure<br/>measure expression +<br/>set of WHERE conditions"]
+    PARSE -->|"doesn't parse"| SIM["Fallback: Text Similarity<br/>SequenceMatcher, threshold 0.85"]
 
-    SIM -->|"ratio >= 0.85"| CONSISTENT["Mark Consistent"]
-    SIM -->|"ratio < 0.85"| DIVERGENT["Flag Divergence"]
+    STRUCT -->|"identical"| CONSISTENT["Mark Consistent"]
+    STRUCT -->|"different"| DIVERGENT["Flag Divergence"]
+    SIM -->|"ratio >= 0.85"| CONSISTENT
+    SIM -->|"ratio < 0.85"| DIVERGENT
 
     DIVERGENT --> TYPE{"Divergence Type"}
-    TYPE -->|"Formula mismatch"| CRIT["Severity: CRITICAL"]
+    TYPE -->|"Measure mismatch"| CRIT["Severity: CRITICAL"]
     TYPE -->|"Naming difference"| MED["Severity: MEDIUM"]
     TYPE -->|"Filter mismatch"| HIGH["Severity: HIGH"]
-    TYPE -->|"Column mapping"| LOW["Severity: LOW"]
+    TYPE -->|"Column mapping"| MED
 
     CONSISTENT --> SCORE["Calculate Consistency Score<br/>consistent_sources / total * 100"]
     CRIT --> SCORE
     MED --> SCORE
     HIGH --> SCORE
-    LOW --> SCORE
 
     SCORE --> SAVE["Save ReconciliationRun<br/>Update SemanticDefinition Flags"]
     SAVE --> RECS["Generate Recommendations"]
@@ -274,6 +276,7 @@ flowchart LR
 - Define canonical governance metrics (the single source of truth)
 - Map how each metric is implemented in every data source (semantic definitions)
 - Run automated reconciliation to detect formula, naming, filter, and column mapping divergences
+- SQL-aware comparison: formulas are parsed with [sqlglot](https://github.com/tobymao/sqlglot), so formatting and condition order don't matter, but real differences are named precisely — e.g. *"Tableau Cloud filter on `status` also includes 'pending'"*. Formulas that aren't valid SQL fall back to text similarity
 - Get severity-rated divergences with actionable recommendations
 
 ### Trust Scoring (6 Dimensions)
@@ -437,7 +440,7 @@ python manage.py export_governance
 ## Tests
 
 ```bash
-# Run all 59 tests
+# Run all 65 tests
 python manage.py test core -v 2
 
 # Run specific test modules
@@ -452,7 +455,7 @@ Test coverage includes:
 - Model creation and constraints (unique_together, validators)
 - All 14 view functions (GET and POST)
 - All REST API endpoints (CRUD operations)
-- Reconciliation engine (consistent, divergent, naming, formula detection)
+- Reconciliation engine (consistent, divergent, naming, formula detection, structural SQL diff)
 - OSI export/import round-trip
 - Trust score calculation
 - Auth: anonymous reads allowed, anonymous writes blocked (views and API)
@@ -505,7 +508,7 @@ Test coverage includes:
 │   └── js/main.js              # Theme toggle, sortable tables, drag-drop
 ├── Dockerfile                  # Python 3.11-slim with Gunicorn
 ├── docker-compose.yml
-├── requirements.txt            # Django, DRF, drf-spectacular, CORS, WhiteNoise, Gunicorn, pandas
+├── requirements.txt            # Django, DRF, drf-spectacular, sqlglot, CORS, WhiteNoise, Gunicorn, pandas
 ├── .github/workflows/ci.yml   # GitHub Actions CI (Python 3.11/3.12 matrix)
 └── README.md
 ```
@@ -514,7 +517,7 @@ Test coverage includes:
 
 ## Tech Stack
 
-- **Backend**: Django 4.2+, Django REST Framework
+- **Backend**: Django 4.2+, Django REST Framework, sqlglot (formula parsing)
 - **Frontend**: Django Templates, Chart.js, CSS Variables (dark/light theming)
 - **Database**: SQLite (dev), PostgreSQL (prod)
 - **Static Files**: WhiteNoise
