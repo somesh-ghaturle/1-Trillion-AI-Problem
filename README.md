@@ -629,4 +629,4 @@ python manage.py test core -v 2
 
 ## License
 
-Open source. See repository for details.
+[MIT](LICENSE) © 2025-2026 Somesh Ghaturle
