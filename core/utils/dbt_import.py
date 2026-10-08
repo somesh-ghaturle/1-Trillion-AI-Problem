@@ -21,6 +21,12 @@ _AGG = {
     'average': 'AVG({})', 'avg': 'AVG({})', 'min': 'MIN({})', 'max': 'MAX({})', 'median': 'MEDIAN({})',
     'sum_boolean': 'SUM(CAST({} AS INT))',
 }
+# Resource limits for untrusted YAML (uploads): YAML aliases can expand a tiny file into billions
+# of values ("billion laughs"), and ratio metrics can reference each other to double formula size.
+MAX_EXPANDED_VALUES = 200_000
+MAX_EXPANDED_CHARS = 5_000_000
+MAX_FORMULA_CHARS = 10_000
+
 _JINJA_REF = re.compile(r"\{\{\s*(?:Dimension|TimeDimension|Entity)\(\s*['\"]([^'\"]+)['\"][^}]*\}\}")
 _IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_.]*$')
 
@@ -38,6 +44,7 @@ class DbtMetric:
 
 @dataclass
 class DbtProject:
+    _rendered: dict = field(default_factory=dict)    # name -> DbtMetric (memo: shared refs render once)
     metrics: dict = field(default_factory=dict)      # name -> raw metric dict (+ '_file')
     measures: dict = field(default_factory=dict)     # name -> {'agg', 'expr'}
     dimensions: dict = field(default_factory=dict)   # name -> SQL expr
@@ -96,6 +103,8 @@ class DbtProject:
         mtype = metric.get('type', 'simple')
         params = metric.get('type_params') or {}
         notes = []
+        if name in self._rendered:
+            return self._rendered[name]
         if name in _seen:
             raise ValueError(f'circular metric reference: {" -> ".join(_seen + (name,))}')
 
@@ -144,8 +153,12 @@ class DbtProject:
         else:
             raise ValueError(f'unsupported metric type "{mtype}"')
 
-        return DbtMetric(name=name, type=mtype, formula=formula, label=metric.get('label', ''),
-                         description=metric.get('description', '') or '', file=metric.get('_file', ''), notes=notes)
+        if len(formula) > MAX_FORMULA_CHARS:
+            raise ValueError(f'rendered formula is longer than {MAX_FORMULA_CHARS} characters')
+        self._rendered[name] = DbtMetric(
+            name=name, type=mtype, formula=formula, label=metric.get('label', ''),
+            description=metric.get('description', '') or '', file=metric.get('_file', ''), notes=notes)
+        return self._rendered[name]
 
     def rendered_metrics(self):
         """All metrics rendered; a metric that can't be rendered goes to errors instead."""
@@ -158,13 +171,33 @@ class DbtProject:
         return out
 
 
+def _check_expanded_size(doc):
+    """Walk the document as code would see it (aliases expanded) and stop once it is too big."""
+    values, chars, stack = 0, 0, [doc]
+    while stack:
+        node = stack.pop()
+        values += 1
+        if isinstance(node, dict):
+            stack.extend(node.keys())
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+        elif isinstance(node, str):
+            chars += len(node)
+        if values > MAX_EXPANDED_VALUES or chars > MAX_EXPANDED_CHARS:
+            raise ValueError('document expands to too much data (YAML aliases?)')
+
+
 def _parse_documents(project, text, filename):
     try:
         for doc in yaml.safe_load_all(text):
+            _check_expanded_size(doc)
             project.add_document(doc, filename)
     except yaml.YAMLError as e:
         hint = ' (Jinja like {{ Dimension(...) }} must be quoted in YAML)' if '{{' in text else ''
         project.errors.append(f'{filename}: invalid YAML{hint}: {str(e).splitlines()[0]}')
+    except ValueError as e:
+        project.errors.append(f'{filename}: {e}')
     except (KeyError, TypeError, AttributeError) as e:
         project.errors.append(f'{filename}: unexpected structure: {e}')
 

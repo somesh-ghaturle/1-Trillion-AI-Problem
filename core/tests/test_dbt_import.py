@@ -127,6 +127,22 @@ metrics:
         _, errors = self.render("metrics:\n  - name: x\n    filter: {{ Dimension('a__b') }} = 1\n")
         self.assertIn('must be quoted', errors[0])
 
+    def test_yaml_alias_bomb_rejected(self):
+        levels = "a: &a ['lol','lol','lol','lol','lol','lol','lol','lol','lol']\n" + ''.join(
+            f"{chr(98 + i)}: &{chr(98 + i)} [" + ','.join([f'*{chr(97 + i)}'] * 9) + "]\n" for i in range(8))
+        text = levels + 'metrics:\n  - {name: boom, type: simple, agg: sum, expr: x, filter: *i}\n'
+        metrics, errors = self.render(text)  # ~400 bytes that expand to 9^9 values
+        self.assertEqual(metrics, {})
+        self.assertIn('expands to too much data', errors[0])
+
+    def test_ratio_chain_renders_linearly_and_is_capped(self):
+        chain = 'metrics:\n  - {name: m0, type: simple, agg: sum, expr: x}\n' + ''.join(
+            f'  - {{name: m{i}, type: ratio, numerator: m{i - 1}, denominator: m{i - 1}}}\n' for i in range(1, 41))
+        metrics, errors = self.render(chain)  # without memoising this is 2^40 render calls
+        self.assertIn('m5', metrics)
+        self.assertNotIn('m40', metrics)
+        self.assertTrue(any('longer than' in e for e in errors))
+
     def test_load_project_skips_build_dirs(self):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / 'models').mkdir()
