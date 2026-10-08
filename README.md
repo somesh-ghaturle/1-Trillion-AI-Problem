@@ -389,7 +389,16 @@ docker build -t trust-control-center .
 docker run -p 8000:8000 trust-control-center
 ```
 
-To create an admin login on startup, set `DJANGO_SUPERUSER_USERNAME` and `DJANGO_SUPERUSER_PASSWORD` (plus `DJANGO_SECRET_KEY` for any real deployment). Sample data is seeded only when the database is empty, so restarts don't duplicate it. With docker-compose, the SQLite database persists in the `db-data` volume at `/app/data`.
+`docker-compose` runs the app against **PostgreSQL 17** (data persists in the `pg-data` volume). Standalone `docker run` and local `runserver` use SQLite unless `DATABASE_URL` is set.
+
+| Variable | Purpose |
+| -------- | ------- |
+| `DATABASE_URL` | `postgres://user:pass@host:5432/dbname` (add `?sslmode=require` for managed Postgres). Unset = SQLite |
+| `POSTGRES_PASSWORD` | Password for the compose `db` service (default `trust` — change it outside local dev) |
+| `DJANGO_SECRET_KEY` | Required for any real deployment |
+| `DJANGO_SUPERUSER_USERNAME` / `DJANGO_SUPERUSER_PASSWORD` | Create an admin login on startup |
+
+Sample data is seeded only when the database is empty, so restarts don't duplicate it.
 
 ---
 
@@ -516,11 +525,11 @@ Test coverage includes:
 
 - **Backend**: Django 4.2+, Django REST Framework
 - **Frontend**: Django Templates, Chart.js, CSS Variables (dark/light theming)
-- **Database**: SQLite (dev), PostgreSQL (prod)
+- **Database**: SQLite (dev default), PostgreSQL via `DATABASE_URL` (docker-compose, prod; psycopg 3)
 - **Static Files**: WhiteNoise
 - **CORS**: django-cors-headers
 - **Containerization**: Docker, Gunicorn
-- **CI/CD**: GitHub Actions (Python 3.11/3.12 matrix, Django tests, Docker build)
+- **CI/CD**: GitHub Actions (Python 3.11/3.12 matrix, tests on Postgres and SQLite, Docker build)
 
 ---
 
@@ -548,7 +557,7 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 - [ ] **API Rate Limiting & Throttling** — DRF throttling classes for public and authenticated endpoints
 
 ### Phase 2 — Production Infrastructure
-- [ ] **PostgreSQL Support** — Production-grade database with `docker-compose.yml` running Postgres + Django
+- [x] **PostgreSQL Support** — `DATABASE_URL` config, docker-compose runs Postgres + Django, CI tests on both Postgres and SQLite
 - [ ] **Celery + Redis for Async Tasks** — Background job processing for reconciliation runs, trust score calculations, and bulk operations
 - [ ] **Real-Time Alerts & Notifications** — Webhook and email alerts when trust scores drop, reconciliation detects divergences, or validation fails
 
