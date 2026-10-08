@@ -49,10 +49,13 @@
 <div class="card">
     <div class="card-header">
         <h2>&#128260; Run Reconciliation</h2>
-        <form method="post" action="{% url 'run_reconciliation' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn">&#9889; Reconcile All Metrics</button>
-        </form>
+        <div class="d-flex align-center gap-1">
+            <a href="{% url 'reconciliation_csv' %}" class="btn btn-secondary">&#11015; Export CSV</a>
+            <form method="post" action="{% url 'run_reconciliation' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn">&#9889; Reconcile All Metrics</button>
+            </form>
+        </div>
     </div>
     <p class="text-muted">
         Compares how each governance metric is defined across your data sources (Snowflake, Tableau, databases, etc.)
@@ -159,7 +162,18 @@
                     </td>
                     <td>
                         {% if run.divergences %}
-                        <span class="badge badge-danger">{{ run.divergences|length }} issue{{ run.divergences|length|pluralize }}</span>
+                        <details>
+                            <summary class="badge badge-danger" style="cursor: pointer;">{{ run.divergences|length }} issue{{ run.divergences|length|pluralize }}</summary>
+                            <ul class="text-sm" style="margin: 0.5rem 0 0; padding-left: 1rem; max-width: 640px;">
+                                {% for d in run.divergences %}
+                                <li style="margin-bottom: 0.4rem;">
+                                    <span class="badge badge-{% if d.severity == 'critical' %}danger{% else %}{{ d.severity }}{% endif %}">{{ d.severity }}</span>
+                                    <span class="text-muted">{{ d.source_a }} vs {{ d.source_b }}:</span>
+                                    {{ d.detail }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
                         {% else %}
                         <span class="badge badge-success">None</span>
                         {% endif %}
