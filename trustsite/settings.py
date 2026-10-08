@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
@@ -12,6 +13,8 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'changeme-in-dev')
 
 DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
+TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
+
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 INSTALLED_APPS = [
@@ -23,13 +26,16 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'django_filters',
     'corsheaders',
     'drf_spectacular',
     'axes',
+    'django_prometheus',
     'core',
 ]
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -39,7 +45,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'axes.middleware.AxesMiddleware',  # must be last
+    'axes.middleware.AxesMiddleware',  # last except the Prometheus timer, which must wrap everything
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -81,7 +88,7 @@ def database_from_url(url):
     if parts.scheme not in ('postgres', 'postgresql'):
         raise ImproperlyConfigured(f'DATABASE_URL must be a postgres:// URL, got {parts.scheme}://')
     return {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_prometheus.db.backends.postgresql',  # postgresql + query metrics
         'NAME': unquote(parts.path.lstrip('/')),
         'USER': unquote(parts.username or ''),
         'PASSWORD': unquote(parts.password or ''),
@@ -99,7 +106,7 @@ if os.environ.get('DATABASE_URL'):
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
             'NAME': os.environ.get('DJANGO_DB_PATH', BASE_DIR / 'db.sqlite3'),
         }
     }
@@ -113,6 +120,33 @@ USE_TZ = True
 
 LOGIN_URL = 'rest_framework:login'
 LOGIN_REDIRECT_URL = '/'
+
+# Alerts (core/alerts.py): webhook and/or email; neither set = log only
+ALERT_WEBHOOK_URL = os.environ.get('ALERT_WEBHOOK_URL', '')
+ALERT_EMAILS = [e.strip() for e in os.environ.get('ALERT_EMAILS', '').split(',') if e.strip()]
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'alerts@trust-control-center.local')
+if os.environ.get('EMAIL_HOST'):
+    EMAIL_HOST = os.environ['EMAIL_HOST']
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '1') == '1'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Celery + Redis (optional). REDIS_URL set: tasks go to the worker and Redis is the shared cache
+# (so rate limits count across gunicorn workers). Unset: tasks run inline, local-memory cache.
+REDIS_URL = os.environ.get('REDIS_URL', '')
+CELERY_BROKER_URL = REDIS_URL or 'memory://'
+CELERY_RESULT_BACKEND = None
+CELERY_TASK_ALWAYS_EAGER = not REDIS_URL
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_ACKS_LATE = True
+if REDIS_URL and not TESTING:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': REDIS_URL}}
+
+# Prometheus scrape token for /metrics; unset = endpoint disabled (404)
+METRICS_TOKEN = os.environ.get('METRICS_TOKEN', '')
 
 # Static files
 STATIC_URL = '/static/'
@@ -132,6 +166,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # ?search=, ?ordering=, and exact filters from each viewset's filterset_fields
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
     # Reads are public; writes need the matching Django model permission (Editor group or superuser)
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
@@ -146,7 +186,17 @@ REST_FRAMEWORK = {
     # SECURE_PROXY_SSL_HEADER); with no proxy (local / docker-compose) use REMOTE_ADDR.
     'NUM_PROXIES': int(os.environ.get('DJANGO_NUM_PROXIES', '0' if DEBUG else '1')),
     # ponytail: LocMemCache is per gunicorn worker, so the effective limit is rate x workers; use Redis cache if that matters
-    'DEFAULT_THROTTLE_RATES': {'token': '10/min'},
+    # Per-client API rate limits (429 when exceeded). The suite makes many requests from one IP, so tests
+    # get a high ceiling; throttle tests set their own rates.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100000/min' if TESTING else os.environ.get('API_RATE_ANON', '120/min'),
+        'user': '100000/min' if TESTING else os.environ.get('API_RATE_USER', '600/min'),
+        'token': '10/min',
+    },
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',

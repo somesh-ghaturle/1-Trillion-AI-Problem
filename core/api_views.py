@@ -22,7 +22,7 @@ from .serializers import (
     SemanticDefinitionSerializer, ReconciliationRunSerializer,
     DataLineageSerializer,
 )
-from .utils import DataQualityValidator, TrustScoringEngine, ReconciliationEngine
+from .utils import DataQualityValidator, TrustScoringEngine
 from .utils.osi_export import export_osi_spec, import_osi_spec
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,9 @@ class DataSourceViewSet(viewsets.ModelViewSet):
     """API endpoint for managing data sources."""
     queryset = DataSource.objects.all()
     serializer_class = DataSourceSerializer
+    search_fields = ['name', 'description', 'connector']
+    filterset_fields = ['source_type', 'is_active']
+    ordering_fields = ['name', 'created_at']
 
     @action(detail=True, methods=['post'], url_path='validate')
     def run_validation(self, request, pk=None):
@@ -124,16 +127,25 @@ class DataSourceViewSet(viewsets.ModelViewSet):
 class ValidationResultViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ValidationResult.objects.select_related('source').all()
     serializer_class = ValidationResultSerializer
+    search_fields = ['source__name']
+    filterset_fields = ['source', 'passed']
+    ordering_fields = ['timestamp', 'quality_score']
 
 
 class TrustScoreViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TrustScore.objects.select_related('source').all()
     serializer_class = TrustScoreSerializer
+    search_fields = ['source__name']
+    filterset_fields = ['source', 'trust_level']
+    ordering_fields = ['calculated_at', 'overall_score']
 
 
 class GovernanceMetricViewSet(viewsets.ModelViewSet):
     queryset = GovernanceMetric.objects.all()
     serializer_class = GovernanceMetricSerializer
+    search_fields = ['name', 'display_name', 'description', 'formula', 'owner']
+    filterset_fields = ['category', 'data_type', 'is_active']
+    ordering_fields = ['name', 'created_at']
 
     @action(detail=False, methods=['get'], url_path='osi-export')
     def osi_export(self, request):
@@ -160,47 +172,36 @@ class GovernanceMetricViewSet(viewsets.ModelViewSet):
 class SemanticDefinitionViewSet(viewsets.ModelViewSet):
     queryset = SemanticDefinition.objects.select_related('governance_metric', 'source').all()
     serializer_class = SemanticDefinitionSerializer
+    search_fields = ['local_name', 'local_formula', 'local_description', 'governance_metric__name', 'source__name']
+    filterset_fields = ['governance_metric', 'source', 'is_consistent']
+    ordering_fields = ['local_name', 'updated_at']
 
 
 class ReconciliationRunViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ReconciliationRun.objects.select_related('governance_metric').all()
     serializer_class = ReconciliationRunSerializer
+    search_fields = ['governance_metric__name']
+    filterset_fields = ['governance_metric', 'status']
+    ordering_fields = ['run_at', 'consistency_score']
 
     @action(detail=False, methods=['post'], url_path='run')
     def run_reconciliation(self, request):
-        """Run reconciliation for all metrics or a specific one."""
+        """Run reconciliation for all metrics or one (`metric_id`). 202 + task id when queued to a worker."""
+        from django.conf import settings
+        from .tasks import run_reconciliation_task
         metric_id = request.data.get('metric_id')
-        engine = ReconciliationEngine()
-
-        if metric_id:
-            metrics_qs = GovernanceMetric.objects.filter(pk=metric_id, is_active=True)
-        else:
-            metrics_qs = GovernanceMetric.objects.filter(is_active=True)
-
-        definitions_qs = SemanticDefinition.objects.select_related('governance_metric', 'source')
-        results = engine.reconcile_all(metrics_qs, definitions_qs)
-
-        saved = []
-        for result in results:
-            metric = GovernanceMetric.objects.get(name=result.metric_name)
-            run = ReconciliationRun.objects.create(
-                governance_metric=metric,
-                status=result.status,
-                total_sources=result.total_sources,
-                consistent_sources=result.consistent_sources,
-                divergent_sources=result.divergent_sources,
-                consistency_score=result.consistency_score,
-                divergences=[d.to_dict() for d in result.divergences],
-                recommendations=result.recommendations,
-            )
-            saved.append(ReconciliationRunSerializer(run).data)
-
-        return Response({'reconciliations': saved, 'count': len(saved)})
+        result = run_reconciliation_task.delay([int(metric_id)] if metric_id else None)
+        if not settings.CELERY_TASK_ALWAYS_EAGER:
+            return Response({'status': 'queued', 'task_id': result.id}, status=status.HTTP_202_ACCEPTED)
+        runs = ReconciliationRun.objects.filter(pk__in=result.result).select_related('governance_metric')
+        return Response({'reconciliations': ReconciliationRunSerializer(runs, many=True).data, 'count': len(runs)})
 
 
 class DataLineageViewSet(viewsets.ModelViewSet):
     queryset = DataLineage.objects.select_related('source_from', 'source_to').all()
     serializer_class = DataLineageSerializer
+    search_fields = ['description', 'source_from__name', 'source_to__name']
+    filterset_fields = ['flow_type', 'source_from', 'source_to']
 
 
 @extend_schema(responses=OpenApiTypes.OBJECT)
@@ -228,3 +229,17 @@ class ThrottledObtainAuthToken(ObtainAuthToken):
 def client_ip(request):
     """Client IP honouring REST_FRAMEWORK['NUM_PROXIES'], so a spoofed X-Forwarded-For is ignored."""
     return BaseThrottle().get_ident(request)
+
+
+@extend_schema(responses=OpenApiTypes.OBJECT)
+@api_view(['GET'])
+@permission_classes([AllowAny])  # read-only; no model queryset for model permissions
+def insights(request):
+    """Anomalous score drops per source, and a 7-day linear outlook for the daily health series."""
+    from .utils.insights import detect_anomalies
+    from .views import health_trend
+    trend = health_trend()
+    return Response({
+        'anomalies': [a.to_dict() for a in detect_anomalies()],
+        'outlook': {s['name']: s['forecast'] for s in trend['series']},
+    })

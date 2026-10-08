@@ -7,7 +7,7 @@ from trustsite.settings import database_from_url
 class DatabaseFromUrlTest(SimpleTestCase):
     def test_full_url(self):
         db = database_from_url('postgres://u%40corp:p%2Fw@db.example.com:6543/trust?sslmode=require')
-        self.assertEqual(db['ENGINE'], 'django.db.backends.postgresql')
+        self.assertEqual(db['ENGINE'], 'django_prometheus.db.backends.postgresql')
         self.assertEqual(
             (db['NAME'], db['USER'], db['PASSWORD'], db['HOST'], db['PORT']),
             ('trust', 'u@corp', 'p/w', 'db.example.com', '6543'),

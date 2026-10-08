@@ -43,6 +43,24 @@
     </form>
 </div>
 
+<!-- Bulk CSV import -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128203; Bulk Import (CSV)</h2>
+        {% include '_export_links.html' with dataset='semantic-definitions' label='Start from an export' %}
+    </div>
+    <p class="text-muted mb-2">
+        Columns: <code>governance_metric_name</code>, <code>source_name</code>, <code>local_name</code>,
+        <code>local_formula</code>, <code>local_description</code> (the same as the export, so you can edit one and upload it back).
+        Existing mappings are updated. If any row has a problem, nothing is imported.
+    </p>
+    <form method="post" action="{% url 'bulk_import' %}" enctype="multipart/form-data" class="d-flex align-center gap-1 flex-wrap">
+        {% csrf_token %}
+        <input type="file" name="csv_file" accept=".csv" required aria-label="Semantic mappings CSV file">
+        <button type="submit" class="btn">&#11014; Import CSV</button>
+    </form>
+</div>
+
 <!-- Add Definition Form -->
 <div class="card">
     <div class="card-header">
@@ -106,8 +124,17 @@
 <div class="card">
     <div class="card-header">
         <h2>&#128279; All Semantic Mappings</h2>
-        <span class="text-muted text-sm">{{ definitions|length }} mappings</span>
+        <span class="text-muted text-sm">{{ definitions|length }} mappings &middot; {% include '_export_links.html' with dataset='semantic-definitions' %}</span>
     </div>
+
+    <form method="get" class="filter-bar" role="search">
+        <input type="search" name="q" value="{{ filters.q }}" placeholder="Search name, formula, metric, source" aria-label="Search mappings">
+        <select name="metric" aria-label="Metric"><option value="">All metrics</option>{% for m in metrics %}<option value="{{ m.id }}" {% if filters.metric == m.id|stringformat:"d" %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}</select>
+        <select name="source" aria-label="Source"><option value="">All sources</option>{% for src in sources %}<option value="{{ src.id }}" {% if filters.source == src.id|stringformat:"d" %}selected{% endif %}>{{ src.name }}</option>{% endfor %}</select>
+        <select name="consistency" aria-label="Consistency"><option value="">Any consistency</option><option value="consistent" {% if filters.consistency == 'consistent' %}selected{% endif %}>Consistent</option><option value="inconsistent" {% if filters.consistency == 'inconsistent' %}selected{% endif %}>Inconsistent</option></select>
+        <button type="submit" class="btn btn-sm btn-secondary">Filter</button>
+        {% if filtering %}<a href="?" class="text-sm">Clear</a> <span class="text-muted text-sm">{{ definitions|length }} match{{ definitions|length|pluralize:"es" }}</span>{% endif %}
+    </form>
 
     {% if definitions %}
     <div class="table-wrapper">
@@ -166,8 +193,8 @@
     {% else %}
     <div class="empty-state">
         <div class="empty-icon">&#128279;</div>
-        <h3>No semantic mappings yet</h3>
-        <p>Add mappings above to define how each governance metric is implemented per source system.</p>
+        <h3>{% if filtering %}No mappings match these filters{% else %}No semantic mappings yet{% endif %}</h3>
+        <p>{% if filtering %}<a href="?">Clear the filters</a> to see all mappings.{% else %}Add mappings above to define how each governance metric is implemented per source system.{% endif %}</p>
     </div>
     {% endif %}
 </div>

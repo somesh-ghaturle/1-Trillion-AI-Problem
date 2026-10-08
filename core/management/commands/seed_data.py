@@ -14,7 +14,8 @@ from core.models import (
     DataSource, ValidationResult, TrustScore, GovernanceMetric,
     SemanticDefinition, ReconciliationRun, DataLineage,
 )
-from core.utils.reconciliation import ReconciliationEngine
+from core import alerts
+from core.tasks import reconcile_and_save
 
 
 class Command(BaseCommand):
@@ -37,13 +38,14 @@ class Command(BaseCommand):
             self.stdout.write('Data already present, skipping seed (use --flush to reset).')
             return
 
-        sources = self._create_sources()
-        metrics = self._create_governance_metrics()
-        self._create_semantic_definitions(metrics, sources)
-        self._create_lineage(sources, metrics)
-        self._create_validations(sources)
-        self._create_trust_scores(sources)
-        self._run_reconciliation(metrics)
+        with alerts.suppressed():  # sample history shouldn't page anyone
+            sources = self._create_sources()
+            metrics = self._create_governance_metrics()
+            self._create_semantic_definitions(metrics, sources)
+            self._create_lineage(sources, metrics)
+            self._create_validations(sources)
+            self._create_trust_scores(sources)
+            self._run_reconciliation(metrics)
 
         self.stdout.write(self.style.SUCCESS(
             '\nSample data created successfully!\n'
@@ -579,7 +581,7 @@ class Command(BaseCommand):
                 (81.2, True, 8, 7, 1),
             ],
             'Google BigQuery': [
-                (90.5, True, 10, 9, 1),
+                (71.4, True, 10, 7, 3),  # latest run: replication incident (shows up as an anomaly)
                 (88.7, True, 10, 9, 1),
                 (92.1, True, 10, 9, 1),
                 (86.3, True, 10, 9, 1),
@@ -722,34 +724,4 @@ class Command(BaseCommand):
 
     def _run_reconciliation(self, metrics):
         self.stdout.write('Running reconciliation engine...')
-        engine = ReconciliationEngine()
-        all_metrics = GovernanceMetric.objects.filter(is_active=True)
-        all_defs = SemanticDefinition.objects.select_related('governance_metric', 'source')
-        results = engine.reconcile_all(all_metrics, all_defs)
-
-        for result in results:
-            metric = GovernanceMetric.objects.get(name=result.metric_name)
-            run = ReconciliationRun.objects.create(
-                governance_metric=metric,
-                status=result.status,
-                total_sources=result.total_sources,
-                consistent_sources=result.consistent_sources,
-                divergent_sources=result.divergent_sources,
-                consistency_score=result.consistency_score,
-                divergences=[d.to_dict() for d in result.divergences],
-                recommendations=result.recommendations,
-            )
-            source_names = set()
-            for d in result.divergences:
-                source_names.add(d.source_a)
-                source_names.add(d.source_b)
-            run.sources_compared.set(DataSource.objects.filter(name__in=source_names))
-
-            # Update consistency flags
-            for defn in SemanticDefinition.objects.filter(governance_metric=metric):
-                is_consistent = defn.source.name not in {
-                    d.source_b for d in result.divergences
-                }
-                defn.is_consistent = is_consistent
-                defn.last_verified = timezone.now()
-                defn.save(update_fields=['is_consistent', 'last_verified'])
+        reconcile_and_save()

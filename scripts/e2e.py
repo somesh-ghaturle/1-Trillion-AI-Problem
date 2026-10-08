@@ -115,6 +115,10 @@ def run_checks():
     runs_before = count('/api/v1/reconciliations/')
     status, _, _ = user.request('POST', '/reconciliation/run/', {'csrfmiddlewaretoken': token},
                                 {'Referer': BASE + '/reconciliation/'})
+    for _ in range(30):  # with a Celery worker the runs land a moment after the redirect
+        if count('/api/v1/reconciliations/') > runs_before:
+            break
+        time.sleep(1)
     check('run reconciliation from UI', status == 302 and count('/api/v1/reconciliations/') > runs_before, status)
 
     # Behind a TLS-terminating proxy (Render/Heroku/Fly): browser Origin is https

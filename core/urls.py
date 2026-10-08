@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from . import views
 from . import api_views
+from . import exports
 
 # DRF Router
 router = DefaultRouter()
@@ -26,11 +27,13 @@ urlpatterns = [
     # Semantic definitions (OSI mappings)
     path('semantic/', views.semantic_definitions, name='semantic_definitions'),
     path('semantic/import-dbt/', views.dbt_import_view, name='dbt_import'),
+    path('semantic/import-csv/', views.bulk_import_view, name='bulk_import'),
 
     # Reconciliation
     path('reconciliation/', views.reconciliation_dashboard, name='reconciliation_dashboard'),
     path('reconciliation/run/', views.run_reconciliation, name='run_reconciliation'),
     path('reconciliation/export.csv', views.reconciliation_csv, name='reconciliation_csv'),
+    path('export/<slug:dataset>.<str:fmt>', exports.export_view, name='export'),
 
     # Data Lineage
     path('lineage/', views.lineage_view, name='lineage'),
@@ -41,6 +44,7 @@ urlpatterns = [
 
     # API endpoints (DRF)
     path('api/', api_views.api_health, name='index'),
+    path('api/v1/insights/', api_views.insights, name='insights'),
     path('api/v1/', include(router.urls)),
     path('api/auth/token/', api_views.ThrottledObtainAuthToken.as_view(), name='api_token'),
     path('api/auth/', include('rest_framework.urls', namespace='rest_framework')),

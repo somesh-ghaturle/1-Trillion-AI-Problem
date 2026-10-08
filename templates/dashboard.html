@@ -59,6 +59,51 @@
     </div>
 </div>
 
+<!-- Anomalies & 7-day outlook -->
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header">
+            <h2>&#128680; Anomalies</h2>
+            <span class="text-muted text-sm">Latest score vs each source's own history</span>
+        </div>
+        {% if anomalies %}
+        <ul class="insight-list">
+            {% for a in anomalies %}
+            <li>
+                <span class="badge badge-danger">&#9888;&#65039; Drop</span>
+                <strong class="text-white">{{ a.source }}</strong> {{ a.measure }} fell to <strong>{{ a.latest|floatformat:1 }}%</strong>,
+                {{ a.drop }} points below its usual {{ a.baseline|floatformat:1 }}%.
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">&#9989; No unusual drops. Every source's latest trust and quality scores are within its normal range.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>&#128302; 7-Day Outlook</h2>
+            <span class="text-muted text-sm">Linear trend of the daily averages</span>
+        </div>
+        <ul class="insight-list">
+            {% for s in health_trend.series %}
+            <li>
+                <strong class="text-white">{{ s.name }}</strong>:
+                {% if s.forecast %}
+                {{ s.forecast.latest|floatformat:1 }}% &rarr; <strong>{{ s.forecast.projected|floatformat:1 }}%</strong>
+                <span class="text-muted text-sm">
+                    ({% if s.forecast.slope_per_day > 0 %}&#9650; +{% elif s.forecast.slope_per_day < 0 %}&#9660; {% else %}&#9644; {% endif %}{{ s.forecast.slope_per_day }}/day, from {{ s.forecast.points }} days)
+                </span>
+                {% else %}
+                <span class="text-muted">not enough history yet (needs 3+ days)</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
 <!-- Charts Row -->
 <div class="grid-2">
     <!-- Trust Distribution Chart -->

@@ -1,3 +1,17 @@
+x-app-env: &app-env
+  - DATABASE_URL=postgres://trust:${POSTGRES_PASSWORD:-trust}@db:5432/trust
+  - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production}
+  - DJANGO_DEBUG=${DJANGO_DEBUG:-0}
+  - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web}
+  - DJANGO_NUM_PROXIES=${DJANGO_NUM_PROXIES:-0}
+  - DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME:-}
+  - DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-}
+  - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+  - METRICS_TOKEN=${METRICS_TOKEN:-}
+  - REDIS_URL=redis://redis:6379/0
+  - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL:-}
+  - ALERT_EMAILS=${ALERT_EMAILS:-}
+
 services:
   db:
     image: postgres:17-alpine
@@ -14,22 +28,39 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   web:
     build: .
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgres://trust:${POSTGRES_PASSWORD:-trust}@db:5432/trust
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production}
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-0}
-      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
-      - DJANGO_NUM_PROXIES=${DJANGO_NUM_PROXIES:-0}
-      - DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME:-}
-      - DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-}
-      - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+    environment: *app-env
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Runs reconciliations and alert delivery off the request path
+  worker:
+    build: .
+    command: ["celery", "-A", "trustsite", "worker", "--loglevel=info", "--concurrency=2"]
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started  # web runs the migrations
     restart: unless-stopped
 
 volumes:

@@ -1,0 +1,5 @@
+<span class="text-muted text-sm">{{ label|default:"Export" }}:
+    <a href="{% url 'export' dataset 'csv' %}">CSV</a> &middot;
+    <a href="{% url 'export' dataset 'xlsx' %}">Excel</a> &middot;
+    <a href="{% url 'export' dataset 'parquet' %}">Parquet</a>
+</span>

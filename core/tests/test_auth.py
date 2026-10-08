@@ -182,3 +182,32 @@ class LoginLockoutTest(TestCase):
             self.client.post(reverse('rest_framework:login'), {'username': 'alice', 'password': 'wrong'},
                              REMOTE_ADDR='198.51.100.1', HTTP_X_FORWARDED_FOR=f'203.0.113.{i}')
         self.assertEqual(self.login('right-password').status_code, 429)
+
+
+class ApiRateLimitTest(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    tearDown = setUp
+
+    def rates(self, anon, user):
+        # DRF copies the rates into a class attribute at import, so override_settings can't reach them
+        from unittest import mock
+        from rest_framework.throttling import SimpleRateThrottle
+        return mock.patch.object(SimpleRateThrottle, 'THROTTLE_RATES',
+                                 {**SimpleRateThrottle.THROTTLE_RATES, 'anon': anon, 'user': user})
+
+    def test_anonymous_limited_then_429_with_retry_after(self):
+        with self.rates('3/min', '100/min'):
+            codes = [APIClient().get('/api/v1/sources/').status_code for _ in range(4)]
+            resp = APIClient().get('/api/v1/sources/')
+        self.assertEqual(codes, [200, 200, 200, 429])
+        self.assertIn('Retry-After', resp)
+
+    def test_authenticated_users_get_their_own_higher_limit(self):
+        client = APIClient()
+        client.force_authenticate(User.objects.create_user('u'))
+        with self.rates('1/min', '5/min'):
+            codes = [client.get('/api/v1/sources/').status_code for _ in range(5)]
+        self.assertEqual(codes, [200] * 5)
