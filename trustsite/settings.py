@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
@@ -11,6 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'changeme-in-dev')
 
 DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
+
+TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
@@ -146,7 +149,17 @@ REST_FRAMEWORK = {
     # SECURE_PROXY_SSL_HEADER); with no proxy (local / docker-compose) use REMOTE_ADDR.
     'NUM_PROXIES': int(os.environ.get('DJANGO_NUM_PROXIES', '0' if DEBUG else '1')),
     # ponytail: LocMemCache is per gunicorn worker, so the effective limit is rate x workers; use Redis cache if that matters
-    'DEFAULT_THROTTLE_RATES': {'token': '10/min'},
+    # Per-client API rate limits (429 when exceeded). The suite makes many requests from one IP, so tests
+    # get a high ceiling; throttle tests set their own rates.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100000/min' if TESTING else os.environ.get('API_RATE_ANON', '120/min'),
+        'user': '100000/min' if TESTING else os.environ.get('API_RATE_USER', '600/min'),
+        'token': '10/min',
+    },
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
