@@ -360,6 +360,13 @@ def run_reconciliation(request):
     return redirect('reconciliation_dashboard')
 
 
+def _csv_safe(value):
+    """Neutralize spreadsheet formulas: source names and formulas are user-supplied."""
+    if isinstance(value, str) and value[:1] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + value
+    return value
+
+
 def reconciliation_csv(request):
     """Download the latest run per metric as CSV, one row per divergence."""
     response = HttpResponse(content_type='text/csv')
@@ -376,12 +383,12 @@ def reconciliation_csv(request):
             continue
         base = [metric.name, run.run_at.isoformat(), run.status, run.consistency_score]
         if not run.divergences:
-            writer.writerow(base + [''] * 6)
+            writer.writerow([_csv_safe(v) for v in base + [''] * 6])
         for d in run.divergences:
-            writer.writerow(base + [
+            writer.writerow([_csv_safe(v) for v in base + [
                 d.get('source_a', ''), d.get('source_b', ''), d.get('divergence_type', ''),
                 d.get('severity', ''), d.get('detail', ''), d.get('recommendation', ''),
-            ])
+            ]])
     return response
 
 

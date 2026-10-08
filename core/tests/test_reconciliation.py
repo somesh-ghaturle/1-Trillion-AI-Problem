@@ -361,6 +361,19 @@ class ReconciliationCSVTest(TestCase):
         self.assertEqual([r['source_b'] for r in rows], ['Tableau', 'Stripe'])
         self.assertEqual(rows[0]['status'], 'divergent')
 
+    def test_formula_like_cells_are_neutralized(self):
+        import csv, io
+        metric = GovernanceMetric.objects.create(
+            name='m', display_name='M', description='', data_type='numeric',
+        )
+        ReconciliationRun.objects.create(governance_metric=metric, status='divergent', divergences=[
+            {'source_a': '=HYPERLINK("http://evil")', 'source_b': '@SUM(A1)', 'detail': 'ok'},
+        ])
+        row = next(csv.DictReader(io.StringIO(self.client.get(reverse('reconciliation_csv')).content.decode())))
+        self.assertEqual(row['source_a'], '\'=HYPERLINK("http://evil")')
+        self.assertEqual(row['source_b'], "'@SUM(A1)")
+        self.assertEqual(row['detail'], 'ok')
+
     def test_page_shows_divergence_detail(self):
         metric = GovernanceMetric.objects.create(
             name='m', display_name='M', description='', data_type='numeric',
