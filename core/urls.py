@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from . import views
 from . import api_views
 
@@ -39,5 +40,7 @@ urlpatterns = [
     # API endpoints (DRF)
     path('api/', api_views.api_health, name='index'),
     path('api/v1/', include(router.urls)),
-    path('api/docs/', include('rest_framework.urls', namespace='rest_framework')),
+    path('api/auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='api_docs'),
 ]

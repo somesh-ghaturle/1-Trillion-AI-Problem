@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.test import TestCase, Client
 from django.urls import reverse
 from core.models import DataSource, ValidationResult, TrustScore, GovernanceMetric
@@ -47,6 +48,7 @@ class DataSourcesViewTest(TestCase):
 class ValidateDataViewTest(TestCase):
     def setUp(self):
         self.client = Client()
+        self.client.force_login(User.objects.create_user('tester'))
         self.source = DataSource.objects.create(name='Test')
 
     def test_get_form(self):
@@ -73,6 +75,7 @@ class CalculateTrustViewTest(TestCase):
 class GovernanceViewTest(TestCase):
     def setUp(self):
         self.client = Client()
+        self.client.force_login(User.objects.create_user('tester'))
 
     def test_governance_page(self):
         resp = self.client.get(reverse('governance_metrics'))

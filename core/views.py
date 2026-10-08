@@ -1,10 +1,12 @@
 import json
 import io
 import logging
+from functools import wraps
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib import messages
+from django.contrib.auth.views import redirect_to_login
 from django.db.models import Avg, Count
 from django.utils import timezone
 from datetime import timedelta
@@ -18,6 +20,16 @@ from .utils.osi_export import export_osi_spec, import_osi_spec
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def login_required_for_post(view):
+    """Pages stay public to read; any POST (create/upload/run) needs a logged-in user."""
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'POST' and not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        return view(request, *args, **kwargs)
+    return wrapper
 
 
 # ──────────────────────────────────────────────
@@ -111,6 +123,7 @@ def data_source_detail(request, pk):
     return render(request, 'data_source_detail.html', context)
 
 
+@login_required_for_post
 def validate_data(request, pk):
     source = get_object_or_404(DataSource, pk=pk)
     if request.method == 'POST' and request.FILES.get('csv_file'):
@@ -139,6 +152,7 @@ def validate_data(request, pk):
     return render(request, 'validate_data.html', {'source': source})
 
 
+@login_required_for_post
 def calculate_trust(request, pk):
     source = get_object_or_404(DataSource, pk=pk)
     if request.method == 'POST' and request.FILES.get('csv_file'):
@@ -174,15 +188,16 @@ def calculate_trust(request, pk):
 # Governance
 # ──────────────────────────────────────────────
 
+@login_required_for_post
 def governance_metrics(request):
     metrics = GovernanceMetric.objects.filter(is_active=True).prefetch_related('semantic_definitions')
 
     if request.method == 'POST':
         name = request.POST.get('name')
         display_name = request.POST.get('display_name')
-        description = request.POST.get('description')
+        description = request.POST.get('description', '')
         formula = request.POST.get('formula', '')
-        data_type = request.POST.get('data_type')
+        data_type = request.POST.get('data_type', '')
         category = request.POST.get('category', '')
         owner = request.POST.get('owner', '')
 
@@ -211,6 +226,7 @@ def governance_metrics(request):
 # Semantic Definitions (OSI mappings)
 # ──────────────────────────────────────────────
 
+@login_required_for_post
 def semantic_definitions(request):
     """View all semantic definitions (how metrics are implemented per source)."""
     definitions = SemanticDefinition.objects.select_related(
@@ -284,6 +300,7 @@ def reconciliation_dashboard(request):
     return render(request, 'reconciliation.html', context)
 
 
+@login_required_for_post
 def run_reconciliation(request):
     """Run reconciliation for all metrics or a specific one."""
     if request.method != 'POST':
@@ -346,6 +363,7 @@ def run_reconciliation(request):
 # Data Lineage
 # ──────────────────────────────────────────────
 
+@login_required_for_post
 def lineage_view(request):
     """View data lineage flows between sources."""
     flows = DataLineage.objects.select_related('source_from', 'source_to').all()
@@ -408,6 +426,7 @@ def osi_export_view(request):
     return render(request, 'osi_export.html', context)
 
 
+@login_required_for_post
 def osi_import_view(request):
     """Import an OSI-compatible JSON specification."""
     if request.method == 'POST':
