@@ -11,6 +11,7 @@ class DataSource(models.Model):
         ('database', 'Database'),
         ('api', 'API'),
         ('file', 'File'),
+        ('dbt', 'dbt'),
         ('other', 'Other'),
     ]
 

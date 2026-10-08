@@ -1,0 +1,41 @@
+# dbt >= 1.12 layout: dimensions and metrics declared on the model itself
+models:
+  - name: dim_customers
+    semantic_model:
+      enabled: true
+    columns:
+      - name: customer_id
+        entity:
+          type: primary
+          name: customer
+      - name: subscription_status
+        dimension:
+          type: categorical
+          name: customer_status
+      - name: deal_status
+        dimension:
+          type: categorical
+          name: deal_status
+    metrics:
+      # Diverges: no 90-day login activity filter
+      - name: customer_count
+        label: Active customers
+        type: simple
+        agg: count_distinct
+        expr: customer_id
+        filter: "{{ Dimension('customer__customer_status') }} = 'active'"
+
+      # Matches governance exactly
+      - name: average_deal_size
+        label: Average deal size
+        type: simple
+        agg: average
+        expr: annual_contract_value
+        filter: "{{ Dimension('customer__deal_status') }} = 'closed_won'"
+
+      # No governance metric with this name: reported as unmatched
+      - name: weekly_active_users
+        label: Weekly active users
+        type: simple
+        agg: count_distinct
+        expr: user_id

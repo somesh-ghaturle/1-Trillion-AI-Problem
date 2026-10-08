@@ -20,6 +20,7 @@ from .models import (
 )
 from .utils import DataQualityValidator, TrustScoringEngine, ReconciliationEngine
 from .utils.osi_export import export_osi_spec, import_osi_spec
+from .utils.dbt_import import import_metrics, load_texts
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -308,6 +309,53 @@ def semantic_definitions(request):
         'sources': sources,
     }
     return render(request, 'semantic_definitions.html', context)
+
+
+DBT_MAX_FILES = 20
+DBT_MAX_FILE_BYTES = 1024 * 1024
+
+
+@permission_required_for_post('core.add_semanticdefinition')
+def dbt_import_view(request):
+    """Upload dbt semantic-layer YAML files; each metric becomes the mapping for its same-named governance metric."""
+    if request.method != 'POST':
+        return redirect('semantic_definitions')
+    files = request.FILES.getlist('dbt_files')
+    if not files:
+        messages.error(request, 'Choose one or more dbt .yml files.')
+        return redirect('semantic_definitions')
+    if len(files) > DBT_MAX_FILES:
+        messages.error(request, f'Upload at most {DBT_MAX_FILES} files at a time.')
+        return redirect('semantic_definitions')
+
+    texts = []
+    for f in files:
+        if not f.name.endswith(('.yml', '.yaml')):
+            messages.error(request, f'{f.name}: not a .yml/.yaml file.')
+            return redirect('semantic_definitions')
+        if f.size > DBT_MAX_FILE_BYTES:
+            messages.error(request, f'{f.name}: larger than 1 MB.')
+            return redirect('semantic_definitions')
+        try:
+            texts.append((f.name, f.read().decode('utf-8')))
+        except UnicodeDecodeError:
+            messages.error(request, f'{f.name}: not UTF-8 text.')
+            return redirect('semantic_definitions')
+
+    source_name = request.POST.get('source_name', '').strip() or 'dbt Semantic Layer'
+    stats = import_metrics(load_texts(texts), source_name=source_name)
+    imported, unmatched = stats['imported'], stats['unmatched']
+    if imported:
+        messages.success(request, f'Imported {len(imported)} dbt metric(s) into "{source_name}": '
+                                  + ', '.join(g.name for g, _ in imported) + '. Run reconciliation to compare.')
+    if unmatched:
+        messages.warning(request, f'{len(unmatched)} dbt metric(s) skipped (no governance metric with that name): '
+                                  + ', '.join(m.name for m in unmatched))
+    for error in stats['errors'][:5]:
+        messages.error(request, error)
+    if not (imported or unmatched or stats['errors']):
+        messages.warning(request, 'No dbt metrics found in the uploaded files.')
+    return redirect('semantic_definitions')
 
 
 # ──────────────────────────────────────────────

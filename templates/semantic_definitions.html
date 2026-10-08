@@ -16,6 +16,33 @@
     </div>
 </div>
 
+<!-- Import from dbt -->
+<div class="card">
+    <div class="card-header">
+        <h2>&#128230; Import from dbt</h2>
+    </div>
+    <p class="text-muted mb-2">
+        Upload the semantic-layer YAML from a dbt project (files with <code>semantic_models</code> and <code>metrics</code>; dbt 1.11 or 1.12+ layout).
+        Each dbt metric becomes the mapping for the governance metric with the same name, ready for reconciliation.
+        Upload measures and the metrics that use them together.
+    </p>
+    <form method="post" action="{% url 'dbt_import' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="dbt_files">dbt YAML files</label>
+                <input type="file" id="dbt_files" name="dbt_files" accept=".yml,.yaml" multiple required>
+                <p class="form-hint">Up to 20 files, 1 MB each.</p>
+            </div>
+            <div class="form-group">
+                <label for="source_name">Data source name</label>
+                <input type="text" id="source_name" name="source_name" placeholder="dbt Semantic Layer">
+            </div>
+        </div>
+        <button type="submit" class="btn">&#11014; Import dbt metrics</button>
+    </form>
+</div>
+
 <!-- Add Definition Form -->
 <div class="card">
     <div class="card-header">

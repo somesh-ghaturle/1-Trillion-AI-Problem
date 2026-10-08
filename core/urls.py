@@ -25,6 +25,7 @@ urlpatterns = [
 
     # Semantic definitions (OSI mappings)
     path('semantic/', views.semantic_definitions, name='semantic_definitions'),
+    path('semantic/import-dbt/', views.dbt_import_view, name='dbt_import'),
 
     # Reconciliation
     path('reconciliation/', views.reconciliation_dashboard, name='reconciliation_dashboard'),

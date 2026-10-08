@@ -1,0 +1,5 @@
+# Example dbt project for `python manage.py import_dbt examples/dbt_project`.
+# Only the semantic-layer YAML is read; there are no SQL models to run.
+name: acme_analytics
+version: "1.0.0"
+profile: acme
