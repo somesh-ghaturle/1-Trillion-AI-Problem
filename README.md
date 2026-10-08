@@ -82,38 +82,47 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph Frontend["Frontend Layer"]
-        TMPL["Django Templates<br/>Glassmorphic Dark/Light UI"]
-        CJS["Chart.js<br/>Interactive Visualizations"]
-        JS["JavaScript<br/>Theme Toggle, Sorting, Drag-Drop"]
+    subgraph Frontend["Frontend"]
+        TMPL["Django Templates<br/>Dark/Light UI, search & filters"]
+        CJS["Chart.js<br/>Health trend, distributions"]
     end
 
-    subgraph Backend["Backend Layer"]
-        DV["Django Views<br/>14 View Functions"]
-        DRF["Django REST Framework<br/>7 ViewSet Endpoints"]
-        RE["Reconciliation Engine<br/>SQL-Aware Formula Comparison (sqlglot)"]
-        TE["Trust Scoring Engine<br/>6-Dimension Analysis"]
-        DQV["Data Quality Validator<br/>CSV Upload and Rule Checks"]
-        OSI_EXP["OSI Export/Import<br/>Vendor-Neutral JSON"]
+    subgraph Backend["Django + DRF (gunicorn)"]
+        DV["Views & REST API<br/>token auth, roles, rate limits"]
+        RE["Reconciliation Engine<br/>SQL-aware diff (sqlglot)"]
+        INS["Insights<br/>anomalies, 7-day outlook"]
+        IMP["Importers<br/>dbt YAML, CSV, OSI"]
+        EXP["Exports<br/>CSV / Excel / Parquet"]
+        MON["/healthz & /metrics"]
     end
 
-    subgraph Data["Data Layer"]
-        DB["SQLite / PostgreSQL"]
-        MOD["7 Django Models"]
+    subgraph Async["Background"]
+        REDIS["Redis<br/>broker + shared cache"]
+        WORKER["Celery worker<br/>reconciliation runs"]
+        ALERT["Alerts<br/>webhook (Slack) / email"]
+    end
+
+    subgraph Data["Data"]
+        DB["PostgreSQL / SQLite"]
+    end
+
+    subgraph Ops["Monitoring (opt-in)"]
+        PROM["Prometheus"] --> GRAF["Grafana dashboard"]
     end
 
     TMPL --> DV
     CJS --> TMPL
-    JS --> TMPL
     DV --> RE
-    DV --> TE
-    DV --> DQV
-    DV --> OSI_EXP
-    DRF --> RE
-    DRF --> OSI_EXP
+    DV --> INS
+    DV --> IMP
+    DV --> EXP
+    DV --> REDIS
+    REDIS --> WORKER
+    WORKER --> RE
+    WORKER --> ALERT
+    RE --> DB
     DV --> DB
-    DRF --> DB
-    MOD --> DB
+    PROM --> MON
 ```
 
 ---
@@ -320,12 +329,34 @@ Ratio metrics are compared as `numerator / denominator`; derived, cumulative and
 - Null detection, type validation, range checks, uniqueness analysis
 - Historical validation tracking per data source
 
+### Anomaly Detection & 7-Day Outlook
+
+- Flags when a source's latest trust or quality score drops well below **its own** recent history (2σ, at least 5 points)
+- Projects each daily health series 7 days ahead from its least-squares trend
+- On the dashboard and at `/api/v1/insights/`
+
+### Alerts
+
+- Webhook (JSON with a Slack-compatible `text` field) and/or email when a validation fails, a score drop is detected, or a reconciliation finds critical divergences
+- Sent after the database commit by the background worker; delivery failures are logged and never break the action that caused them
+
+### Search, Filters, Export & Bulk Import
+
+- Search and filters on every list page (bookmarkable URLs) and `?search=` / `?ordering=` / field filters on every API endpoint
+- Download trust scores, validations, metrics, mappings and reconciliation findings as **CSV, Excel, or Parquet** (`/export/<dataset>.<format>`)
+- Bulk-import semantic mappings from CSV; the columns match the export, so you can export, edit in a spreadsheet, and upload back
+
+### Monitoring
+
+- `/healthz` (database + broker) for load balancers and uptime checks
+- `/metrics` in Prometheus format: request rate, latency, DB queries, plus trust, quality, consistency, and open divergences. Requires a bearer token
+- Optional Prometheus + Grafana stack with a provisioned dashboard (see [Docker](#docker))
+
 ### REST API
 
-- Full CRUD API for all entities via Django REST Framework
-- Browsable API at `/api/v1/`
-- Endpoints: data sources, governance metrics, semantic definitions, reconciliations, lineage, trust scores, validations
-- OSI export/import via API
+- Full CRUD API for all entities via Django REST Framework; Swagger UI at `/api/docs/`
+- Token auth, role-based write permissions, per-client rate limits (120/min anonymous, 600/min logged in)
+- Browsable API at `/api/v1/`; OSI export/import via API
 
 ---
 
@@ -333,12 +364,12 @@ Ratio metrics are compared as `numerator / denominator`; derived, cumulative and
 
 | Page | URL | Description |
 | ---- | --- | ----------- |
-| Dashboard | `/` | Overview with trust scores, 30-day health trend (trust, quality, consistency), reconciliation status, dimension analysis |
+| Dashboard | `/` | Trust and quality scores, anomalies, 7-day outlook, 30-day health trend, reconciliation status |
 | Data Sources | `/sources/` | All monitored systems with trust scores and validation history |
 | Governance | `/governance/` | Define canonical metrics (the single source of truth) |
 | Semantic Mappings | `/semantic/` | Map how metrics are implemented per source system |
 | Reconciliation | `/reconciliation/` | Run cross-source comparison, view divergences |
-| Reconciliation CSV | `/reconciliation/export.csv` | Latest run per metric, one row per divergence |
+| Exports | `/export/<dataset>.<csv\|xlsx\|parquet>` | trust-scores, validations, governance-metrics, semantic-definitions, reconciliation |
 | Data Lineage | `/lineage/` | Track data flows between systems |
 | OSI Export | `/osi/` | Export/import semantic model as vendor-neutral JSON |
 | API Browser | `/api/v1/` | Interactive REST API explorer |
@@ -425,24 +456,28 @@ python manage.py seed_data --flush
 ## Docker
 
 ```bash
-# Build and run
-docker-compose up --build
+# App + PostgreSQL + Redis + Celery worker
+DJANGO_SUPERUSER_USERNAME=admin DJANGO_SUPERUSER_PASSWORD=change-me docker compose up --build
 
-# Or standalone
-docker build -t trust-control-center .
-docker run -p 8000:8000 trust-control-center
+# Optional: add Prometheus (localhost:9090) and Grafana (localhost:3000, admin / $GRAFANA_PASSWORD)
+METRICS_TOKEN=$(openssl rand -hex 24) GRAFANA_PASSWORD=change-me \
+  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
 ```
 
-`docker-compose` runs the app against **PostgreSQL 17** (data persists in the `pg-data` volume). Standalone `docker run` and local `runserver` use SQLite unless `DATABASE_URL` is set.
+`docker compose` runs **PostgreSQL 17**, **Redis**, the web app (gunicorn) and a **Celery worker**. Without Docker, local `runserver` uses SQLite and runs background tasks inline, so nothing else needs to be installed. Sample data is seeded only when the database is empty.
 
 | Variable | Purpose |
 | -------- | ------- |
 | `DATABASE_URL` | `postgres://user:pass@host:5432/dbname` (add `?sslmode=require` for managed Postgres). Unset = SQLite |
-| `POSTGRES_PASSWORD` | Password for the compose `db` service (default `trust` — change it outside local dev) |
+| `REDIS_URL` | Celery broker and shared cache. Unset = tasks run inline, per-process cache |
 | `DJANGO_SECRET_KEY` | Required for any real deployment |
 | `DJANGO_SUPERUSER_USERNAME` / `DJANGO_SUPERUSER_PASSWORD` | Create an admin login on startup |
-
-Sample data is seeded only when the database is empty, so restarts don't duplicate it.
+| `DJANGO_ALLOWED_HOSTS`, `DJANGO_NUM_PROXIES` | Host names; number of reverse proxies in front (for client IPs in rate limits and lockouts) |
+| `ALERT_WEBHOOK_URL`, `ALERT_EMAILS` | Alert destinations (Slack-compatible webhook; comma-separated emails) |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` | SMTP for email alerts. Unset = printed to the console |
+| `API_RATE_ANON`, `API_RATE_USER` | API rate limits (default `120/min`, `600/min`) |
+| `METRICS_TOKEN` | Bearer token for `/metrics`. Unset = endpoint disabled |
+| `POSTGRES_PASSWORD`, `GRAFANA_PASSWORD` | Compose `db` password (default `trust`); Grafana admin password (required for monitoring) |
 
 ---
 
@@ -450,6 +485,8 @@ Sample data is seeded only when the database is empty, so restarts don't duplica
 
 | Endpoint | Methods | Description |
 | -------- | ------- | ----------- |
+| `/healthz` | GET | Database + broker health (200 / 503) |
+| `/metrics` | GET | Prometheus metrics (`Authorization: Bearer $METRICS_TOKEN`) |
 | `/api/` | GET | API health check |
 | `/api/auth/token/` | POST | Exchange username/password for an API token |
 | `/api/schema/` | GET | OpenAPI 3 schema (YAML) |
@@ -458,12 +495,15 @@ Sample data is seeded only when the database is empty, so restarts don't duplica
 | `/api/v1/governance-metrics/` | GET, POST, PUT, DELETE | Governance metric CRUD |
 | `/api/v1/semantic-definitions/` | GET, POST, PUT, DELETE | Semantic definition CRUD |
 | `/api/v1/reconciliations/` | GET | Reconciliation run history |
-| `/api/v1/reconciliations/run/` | POST | Trigger reconciliation |
+| `/api/v1/reconciliations/run/` | POST | Trigger reconciliation (202 + task id when a worker is configured) |
+| `/api/v1/insights/` | GET | Anomalies and 7-day outlook |
 | `/api/v1/lineage/` | GET, POST, PUT, DELETE | Data lineage CRUD |
 | `/api/v1/trust-scores/` | GET | Trust score history |
 | `/api/v1/validations/` | GET | Validation result history |
 | `/api/v1/governance-metrics/osi-export/` | GET | OSI spec export |
 | `/api/v1/governance-metrics/osi-import/` | POST | OSI spec import |
+
+Every list endpoint accepts `?search=`, `?ordering=` and field filters (for example `/api/v1/trust-scores/?trust_level=low&ordering=-overall_score`).
 
 ---
 
@@ -530,66 +570,43 @@ Unit test coverage includes:
 
 ```text
 ./
-├── trustsite/                  # Django project settings
-│   ├── settings.py             # Configuration (DRF, CORS, WhiteNoise, security)
-│   ├── urls.py                 # Root URL configuration
-│   └── wsgi.py
+├── trustsite/                  # Django project: settings, URLs, Celery app
 ├── core/                       # Main application
-│   ├── models.py               # 7 models (DataSource, GovernanceMetric, SemanticDefinition, etc.)
-│   ├── views.py                # 14 view functions
-│   ├── api_views.py            # DRF ViewSets (7 endpoints)
-│   ├── serializers.py          # DRF serializers
-│   ├── urls.py                 # URL routing + DRF router
-│   ├── admin.py                # Django admin configuration
+│   ├── models.py               # DataSource, GovernanceMetric, SemanticDefinition, ReconciliationRun, ...
+│   ├── views.py / api_views.py # Pages and DRF API
+│   ├── tasks.py                # Celery tasks (reconciliation, alert delivery)
+│   ├── alerts.py               # Webhook / email alerts from model signals
+│   ├── exports.py              # CSV / Excel / Parquet downloads
+│   ├── monitoring.py           # /healthz and /metrics
 │   ├── utils/
-│   │   ├── reconciliation.py   # Cross-source reconciliation engine
-│   │   ├── osi_export.py       # OSI-compatible JSON export/import
-│   │   ├── dbt_import.py       # dbt Semantic Layer YAML -> semantic mappings
-│   │   ├── trust_scoring.py    # 6-dimension trust scoring engine
-│   │   ├── data_quality_validator.py  # CSV quality validation
-│   │   └── data_governance.py  # Governance utilities
-│   ├── management/commands/
-│   │   ├── seed_data.py        # Populate realistic sample data
-│   │   ├── calc_trust.py       # Batch trust score calculation
-│   │   ├── validate_data.py    # CLI data validation
-│   │   └── export_governance.py
-│   └── tests/
-│       ├── test_models.py      # Model tests
-│       ├── test_views.py       # View tests
-│       ├── test_api.py         # API endpoint tests
-│       └── test_reconciliation.py  # Reconciliation, OSI, semantic tests
-├── templates/                  # Django templates (glassmorphic dark/light UI)
-│   ├── base.html               # Sidebar layout, theme toggle
-│   ├── dashboard.html          # Main dashboard with Chart.js
-│   ├── data_sources.html       # Source list with trust badges
-│   ├── governance_metrics.html # Metric definitions
-│   ├── semantic_definitions.html # Per-source mappings
-│   ├── reconciliation.html     # Cross-source comparison
-│   ├── lineage.html            # Data flow visualization
-│   └── osi_export.html         # OSI JSON export/import
-├── static/
-│   ├── css/main.css            # CSS with dark/light theme variables
-│   └── js/main.js              # Theme toggle, sortable tables, drag-drop
-├── examples/dbt_project/       # Sample dbt semantic layer for `import_dbt`
-├── Dockerfile                  # Python 3.11-slim with Gunicorn
-├── docker-compose.yml
-├── requirements.txt            # Django, DRF, drf-spectacular, sqlglot, CORS, WhiteNoise, Gunicorn, pandas
+│   │   ├── reconciliation.py   # SQL-aware cross-source comparison
+│   │   ├── insights.py         # Anomaly detection and outlook
+│   │   ├── dbt_import.py       # dbt Semantic Layer YAML -> mappings
+│   │   ├── bulk_import.py      # CSV -> mappings
+│   │   ├── osi_export.py       # OSI JSON export/import
+│   │   └── trust_scoring.py, data_quality_validator.py
+│   ├── management/commands/    # seed_data, import_dbt, calc_trust, validate_data, export_governance
+│   └── tests/                  # Unit and integration tests
+├── templates/, static/         # Dark/light UI
+├── monitoring/                 # Prometheus config, Grafana datasource + dashboard
+├── examples/dbt_project/       # Sample dbt semantic layer
 ├── scripts/e2e.py              # End-to-end checks against the running Docker stack
-├── .github/workflows/ci.yml   # GitHub Actions CI (unit tests on Postgres + SQLite, Docker e2e)
-└── README.md
+├── docker-compose.yml          # Postgres, Redis, web, worker
+├── docker-compose.monitoring.yml  # Optional Prometheus + Grafana
+└── .github/workflows/ci.yml    # Tests on Postgres + SQLite (Python 3.11/3.12), Docker e2e
 ```
 
 ---
 
 ## Tech Stack
 
-- **Backend**: Django 4.2+, Django REST Framework, sqlglot (formula parsing)
-- **Frontend**: Django Templates, Chart.js, CSS Variables (dark/light theming)
-- **Database**: SQLite (dev default), PostgreSQL via `DATABASE_URL` (docker-compose, prod; psycopg 3)
-- **Static Files**: WhiteNoise
-- **CORS**: django-cors-headers
-- **Containerization**: Docker, Gunicorn
-- **CI/CD**: GitHub Actions (Python 3.11/3.12 matrix, tests on Postgres and SQLite, docker-compose end-to-end checks)
+- **Backend**: Django, Django REST Framework, drf-spectacular, django-filter, sqlglot (formula parsing), pandas
+- **Async**: Celery + Redis
+- **Frontend**: Django Templates, Chart.js, CSS variables (dark/light)
+- **Database**: PostgreSQL (psycopg 3) or SQLite
+- **Security**: role-based permissions, token auth, rate limiting, django-axes login lockout
+- **Observability**: django-prometheus, Prometheus, Grafana
+- **Delivery**: Docker, gunicorn, WhiteNoise, GitHub Actions (unit tests on Postgres + SQLite, docker-compose end-to-end)
 
 ---
 
@@ -610,29 +627,30 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 
 ## Roadmap
 
-### Phase 1 — Security & API Polish
-- [x] **Authentication** — Login required for all writes; anonymous users get read-only access (session + token auth for API)
-- [x] **Role-Based Access Control** — Admin / Editor / Viewer roles via Django groups and model permissions, token-based API auth
-- [x] **Swagger/OpenAPI Documentation** — Interactive API docs at `/api/docs/` using `drf-spectacular`, auto-generated schema from serializers
-- [ ] **API Rate Limiting & Throttling** — DRF throttling classes for public and authenticated endpoints
+### Phase 1 — Security & API Polish ✅
+- [x] **Authentication** — Login required for all writes; anonymous users get read-only access
+- [x] **Role-Based Access Control** — Admin / Editor / Viewer via Django groups and model permissions, API tokens
+- [x] **Swagger/OpenAPI Documentation** — `/api/docs/`, generated with drf-spectacular
+- [x] **API Rate Limiting** — Per-client limits for anonymous and logged-in users, plus login lockout (django-axes)
 
-### Phase 2 — Production Infrastructure
-- [x] **PostgreSQL Support** — `DATABASE_URL` config, docker-compose runs Postgres + Django, CI tests on both Postgres and SQLite
-- [ ] **Celery + Redis for Async Tasks** — Background job processing for reconciliation runs, trust score calculations, and bulk operations
-- [ ] **Real-Time Alerts & Notifications** — Webhook and email alerts when trust scores drop, reconciliation detects divergences, or validation fails
+### Phase 2 — Production Infrastructure ✅
+- [x] **PostgreSQL Support** — `DATABASE_URL`; CI tests on Postgres and SQLite
+- [x] **Celery + Redis** — Reconciliation runs and alert delivery in a background worker
+- [x] **Alerts & Notifications** — Webhook (Slack-compatible) and email on failed validations, score drops, critical divergences
 
-### Phase 3 — Analytics & Export
-- [x] **Historical Trend Analytics** — Dashboard "Health Over Time" chart: daily trust score, data quality, and reconciliation consistency (30 days, with table view)
-- [ ] **Anomaly Detection & Forecasting** — Flag sudden drops in quality metrics, project trends forward
-- [x] **CSV Export of Reconciliation Results** — `/reconciliation/export.csv`
-- [ ] **More Export Formats** — Trust scores and governance metrics as CSV / Excel / Parquet
-- [ ] **Bulk Import & Batch Operations** — Batch upload of semantic definitions, bulk reconciliation across all metrics
+### Phase 3 — Analytics & Export ✅
+- [x] **Historical Trend Analytics** — 30-day "Health Over Time" chart with table view
+- [x] **Anomaly Detection & Forecasting** — Per-source score-drop detection and a 7-day outlook
+- [x] **Export Formats** — CSV, Excel and Parquet for trust scores, validations, metrics, mappings, and findings
+- [x] **Bulk Import** — CSV import of semantic mappings (round-trips with the export); reconcile all metrics in one run
 
-### Phase 4 — UX & Usability
-- [ ] **Advanced Search & Filtering** — Full-text search across metrics, sources, and definitions; filter by trust level, divergence severity, source type
-- [x] **dbt Connector** — Import metric definitions from dbt Semantic Layer YAML (upload or `import_dbt`)
-- [ ] **More Connectors** — Live integrations with Snowflake, Tableau, Salesforce, and BigQuery for automatic semantic definition sync
-- [ ] **Monitoring & Observability Dashboard** — Prometheus metrics, health checks, uptime tracking, and integration with Grafana
+### Phase 4 — UX & Integrations ✅
+- [x] **Search & Filtering** — On every list page and API endpoint
+- [x] **dbt Connector** — Import metric definitions from dbt Semantic Layer YAML
+- [x] **Monitoring & Observability** — `/healthz`, Prometheus `/metrics`, provisioned Grafana dashboard
+
+### Future
+- [ ] **Live warehouse & BI connectors** — Sync definitions directly from Snowflake, BigQuery, Tableau, and Salesforce. Not built yet, because each needs a real account to test against; dbt YAML import covers the most common source of metric definitions today.
 
 ---
 
