@@ -144,6 +144,20 @@ def run_checks():
                                      {'Content-Type': 'application/json', 'Authorization': f'Token {token}'})
     check('API POST with token', status == 201, status)
 
+    # Login lockout (django-axes): the 5th failure for one username+IP is locked out. Throwaway
+    # username so the real admin is never locked; attempts land on different gunicorn workers.
+    ghost = f'e2e-ghost-{time.time_ns()}'
+    for _ in range(4):
+        b = Browser()
+        _, _, body = b.request('GET', '/api/auth/login/')
+        token = re.search(rb'name="csrfmiddlewaretoken" value="([^"]+)"', body).group(1).decode()
+        status, _, _ = b.request('POST', '/api/auth/login/', {'username': ghost, 'password': 'nope',
+                                 'csrfmiddlewaretoken': token}, {'Origin': BASE, 'Referer': BASE + '/api/auth/login/'})
+    check('4 failed logins: not yet locked (form re-shown)', status == 200, status)
+    status, _, _ = b.request('POST', '/api/auth/login/', {'username': ghost, 'password': 'nope',
+                             'csrfmiddlewaretoken': token}, {'Origin': BASE, 'Referer': BASE + '/api/auth/login/'})
+    check('5th failed login is locked out', status == 429, status)
+
     print(f'{sum(results)}/{len(results)} checks passed')
     return all(results)
 
