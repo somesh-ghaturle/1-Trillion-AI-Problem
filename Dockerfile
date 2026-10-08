@@ -11,9 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
 COPY . .
+RUN mkdir -p /app/data
 
 EXPOSE 8000
 
 ENV DJANGO_DEBUG=0
 
-CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py seed_data && gunicorn trustsite.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py seed_data && { [ -z \"$DJANGO_SUPERUSER_USERNAME\" ] || python manage.py createsuperuser --noinput || true; } && gunicorn trustsite.wsgi:application --bind 0.0.0.0:8000 --workers 3"]

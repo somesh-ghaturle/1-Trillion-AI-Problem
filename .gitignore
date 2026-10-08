@@ -46,3 +46,8 @@ htmlcov/
 
 # Logs
 *.log
+
+# Local artifacts
+.venv/
+db.sqlite3
+staticfiles/

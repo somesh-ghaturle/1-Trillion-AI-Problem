@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 from core.models import DataSource, TrustScore, ValidationResult, GovernanceMetric
@@ -6,6 +7,7 @@ from core.models import DataSource, TrustScore, ValidationResult, GovernanceMetr
 class DataSourceAPITest(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.client.force_authenticate(User.objects.create_user('tester'))
         self.source = DataSource.objects.create(
             name='API Test Source',
             source_type='database'
@@ -86,6 +88,7 @@ class ValidationResultAPITest(TestCase):
 class GovernanceMetricAPITest(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.client.force_authenticate(User.objects.create_user('tester'))
 
     def test_create_metric(self):
         resp = self.client.post('/api/v1/governance-metrics/', {

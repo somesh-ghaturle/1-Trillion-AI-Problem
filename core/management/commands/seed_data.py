@@ -33,6 +33,9 @@ class Command(BaseCommand):
             ValidationResult.objects.all().delete()
             GovernanceMetric.objects.all().delete()
             DataSource.objects.all().delete()
+        elif DataSource.objects.exists():
+            self.stdout.write('Data already present, skipping seed (use --flush to reset).')
+            return
 
         sources = self._create_sources()
         metrics = self._create_governance_metrics()

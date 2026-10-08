@@ -344,9 +344,16 @@ python manage.py migrate
 # Load sample data (8 sources, 8 metrics, 23 semantic definitions, reconciliation runs)
 python manage.py seed_data
 
+# Create a login (needed to create, upload, or run anything)
+python manage.py createsuperuser
+
 # Start the server
 python manage.py runserver
 ```
+
+### Access Model
+
+Every page and `GET` API endpoint is public and read-only. Creating metrics, uploading CSVs, running reconciliation, importing OSI specs, and all API writes require a logged-in user. Use **Log in** in the sidebar (or `/api/docs/login/`). API clients can use session or HTTP Basic auth.
 
 Open <http://localhost:8000/> to see the dashboard populated with realistic enterprise data demonstrating cross-source inconsistencies.
 
@@ -380,6 +387,8 @@ docker-compose up --build
 docker build -t trust-control-center .
 docker run -p 8000:8000 trust-control-center
 ```
+
+To create an admin login on startup, set `DJANGO_SUPERUSER_USERNAME` and `DJANGO_SUPERUSER_PASSWORD` (plus `DJANGO_SECRET_KEY` for any real deployment). Sample data is seeded only when the database is empty, so restarts don't duplicate it. With docker-compose, the SQLite database persists in the `db-data` volume at `/app/data`.
 
 ---
 
@@ -425,7 +434,7 @@ python manage.py export_governance
 ## Tests
 
 ```bash
-# Run all 54 tests
+# Run all 59 tests
 python manage.py test core -v 2
 
 # Run specific test modules
@@ -443,6 +452,8 @@ Test coverage includes:
 - Reconciliation engine (consistent, divergent, naming, formula detection)
 - OSI export/import round-trip
 - Trust score calculation
+- Auth: anonymous reads allowed, anonymous writes blocked (views and API)
+- Seed command is idempotent
 
 ---
 
@@ -528,7 +539,8 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 ## Roadmap
 
 ### Phase 1 — Security & API Polish
-- [ ] **Authentication & Role-Based Access Control** — User login, admin/viewer roles, token-based API auth, permission scoping per endpoint
+- [x] **Authentication** — Login required for all writes; anonymous users get read-only access (session + Basic auth for API)
+- [ ] **Role-Based Access Control** — Admin/viewer roles, token-based API auth, permission scoping per endpoint
 - [ ] **Swagger/OpenAPI Documentation** — Interactive API docs at `/api/docs/` using `drf-spectacular`, auto-generated schema from serializers
 - [ ] **API Rate Limiting & Throttling** — DRF throttling classes for public and authenticated endpoints
 
