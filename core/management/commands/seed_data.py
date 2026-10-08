@@ -14,6 +14,7 @@ from core.models import (
     DataSource, ValidationResult, TrustScore, GovernanceMetric,
     SemanticDefinition, ReconciliationRun, DataLineage,
 )
+from core import alerts
 from core.utils.reconciliation import ReconciliationEngine
 
 
@@ -37,13 +38,14 @@ class Command(BaseCommand):
             self.stdout.write('Data already present, skipping seed (use --flush to reset).')
             return
 
-        sources = self._create_sources()
-        metrics = self._create_governance_metrics()
-        self._create_semantic_definitions(metrics, sources)
-        self._create_lineage(sources, metrics)
-        self._create_validations(sources)
-        self._create_trust_scores(sources)
-        self._run_reconciliation(metrics)
+        with alerts.suppressed():  # sample history shouldn't page anyone
+            sources = self._create_sources()
+            metrics = self._create_governance_metrics()
+            self._create_semantic_definitions(metrics, sources)
+            self._create_lineage(sources, metrics)
+            self._create_validations(sources)
+            self._create_trust_scores(sources)
+            self._run_reconciliation(metrics)
 
         self.stdout.write(self.style.SUCCESS(
             '\nSample data created successfully!\n'

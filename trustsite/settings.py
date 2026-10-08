@@ -121,6 +121,19 @@ USE_TZ = True
 LOGIN_URL = 'rest_framework:login'
 LOGIN_REDIRECT_URL = '/'
 
+# Alerts (core/alerts.py): webhook and/or email; neither set = log only
+ALERT_WEBHOOK_URL = os.environ.get('ALERT_WEBHOOK_URL', '')
+ALERT_EMAILS = [e.strip() for e in os.environ.get('ALERT_EMAILS', '').split(',') if e.strip()]
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'alerts@trust-control-center.local')
+if os.environ.get('EMAIL_HOST'):
+    EMAIL_HOST = os.environ['EMAIL_HOST']
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '1') == '1'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 # Prometheus scrape token for /metrics; unset = endpoint disabled (404)
 METRICS_TOKEN = os.environ.get('METRICS_TOKEN', '')
 

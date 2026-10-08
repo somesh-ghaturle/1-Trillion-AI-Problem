@@ -18,3 +18,4 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         post_migrate.connect(sync_editor_group, sender=self)
+        from . import alerts  # noqa: F401  registers the post_save alert signals
