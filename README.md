@@ -460,7 +460,16 @@ python manage.py test core.tests.test_models -v 2
 python manage.py test core.tests.test_views -v 2
 ```
 
-Test coverage includes:
+### End-to-end (Docker)
+
+`scripts/e2e.py` exercises the running docker-compose stack over HTTP: every page, CSV export, static files, anonymous-write blocking, login (including behind an HTTPS proxy), UI writes, reconciliation runs, and API Basic auth. CI runs it on every push and PR, then checks that a restart and a full `down`/`up` keep the data without re-seeding.
+
+```bash
+DJANGO_SUPERUSER_USERNAME=admin DJANGO_SUPERUSER_PASSWORD=secret docker compose up --build -d
+E2E_PASSWORD=secret python3 scripts/e2e.py
+```
+
+Unit test coverage includes:
 
 - Model creation and constraints (unique_together, validators)
 - All 14 view functions (GET and POST)
@@ -519,7 +528,8 @@ Test coverage includes:
 ├── Dockerfile                  # Python 3.11-slim with Gunicorn
 ├── docker-compose.yml
 ├── requirements.txt            # Django, DRF, drf-spectacular, sqlglot, CORS, WhiteNoise, Gunicorn, pandas
-├── .github/workflows/ci.yml   # GitHub Actions CI (Python 3.11/3.12 matrix)
+├── scripts/e2e.py              # End-to-end checks against the running Docker stack
+├── .github/workflows/ci.yml   # GitHub Actions CI (unit tests on Postgres + SQLite, Docker e2e)
 └── README.md
 ```
 
@@ -533,7 +543,7 @@ Test coverage includes:
 - **Static Files**: WhiteNoise
 - **CORS**: django-cors-headers
 - **Containerization**: Docker, Gunicorn
-- **CI/CD**: GitHub Actions (Python 3.11/3.12 matrix, tests on Postgres and SQLite, Docker build)
+- **CI/CD**: GitHub Actions (Python 3.11/3.12 matrix, tests on Postgres and SQLite, docker-compose end-to-end checks)
 
 ---
 
