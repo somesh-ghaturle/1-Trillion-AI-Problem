@@ -358,7 +358,29 @@ python manage.py runserver
 
 ### Access Model
 
-Every page and `GET` API endpoint is public and read-only. Creating metrics, uploading CSVs, running reconciliation, importing OSI specs, and all API writes require a logged-in user. Use **Log in** in the sidebar (or `/api/auth/login/`). API clients can use session or HTTP Basic auth.
+Every page and `GET` API endpoint is public and read-only. Writing (creating metrics, uploading CSVs, running reconciliation, importing OSI specs, API writes) depends on role:
+
+| Role | Who | Can write? |
+| ---- | --- | ---------- |
+| **Admin** | Superusers | Everything, plus the admin panel |
+| **Editor** | Users in the `Editor` group (created automatically on `migrate`) | All app data |
+| **Viewer** | Any other logged-in user, or anonymous | No — read-only (403 on writes) |
+
+Make someone an editor in **Admin → Users → Groups**, or:
+
+```bash
+python manage.py shell -c "from django.contrib.auth.models import User, Group; User.objects.get(username='alice').groups.add(Group.objects.get(name='Editor'))"
+```
+
+Log in via **Log in** in the sidebar (or `/api/auth/login/`). For scripts, get an API token (rate-limited to 10/min):
+
+```bash
+curl -X POST localhost:8000/api/auth/token/ -d username=alice -d password=...
+# {"token": "9944b0..."}
+curl -H "Authorization: Token 9944b0..." localhost:8000/api/v1/sources/ -d name=Redshift -d source_type=database
+```
+
+Session and HTTP Basic auth also work for the API. Tokens can be viewed and revoked in **Admin → Auth Token → Tokens**.
 
 Open <http://localhost:8000/> to see the dashboard populated with realistic enterprise data demonstrating cross-source inconsistencies.
 
@@ -411,6 +433,7 @@ Sample data is seeded only when the database is empty, so restarts don't duplica
 | Endpoint | Methods | Description |
 | -------- | ------- | ----------- |
 | `/api/` | GET | API health check |
+| `/api/auth/token/` | POST | Exchange username/password for an API token |
 | `/api/schema/` | GET | OpenAPI 3 schema (YAML) |
 | `/api/docs/` | GET | Swagger UI |
 | `/api/v1/sources/` | GET, POST, PUT, DELETE | Data source CRUD |
@@ -477,7 +500,7 @@ Unit test coverage includes:
 - Reconciliation engine (consistent, divergent, naming, formula detection, structural SQL diff)
 - OSI export/import round-trip
 - Trust score calculation
-- Auth: anonymous reads allowed, anonymous writes blocked (views and API)
+- Auth: anonymous reads allowed, anonymous and viewer writes blocked, editor and superuser writes allowed, API tokens, token endpoint throttling
 - Seed command is idempotent
 
 ---
@@ -566,7 +589,7 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 
 ### Phase 1 — Security & API Polish
 - [x] **Authentication** — Login required for all writes; anonymous users get read-only access (session + Basic auth for API)
-- [ ] **Role-Based Access Control** — Admin/viewer roles, token-based API auth, permission scoping per endpoint
+- [x] **Role-Based Access Control** — Admin / Editor / Viewer roles via Django groups and model permissions, token-based API auth
 - [x] **Swagger/OpenAPI Documentation** — Interactive API docs at `/api/docs/` using `drf-spectacular`, auto-generated schema from serializers
 - [ ] **API Rate Limiting & Throttling** — DRF throttling classes for public and authenticated endpoints
 

@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from core.tests import make_editor
 from django.test import TestCase, Client
 from django.urls import reverse
 from core.models import (
@@ -149,7 +150,7 @@ class DataLineageModelTest(TestCase):
 class ReconciliationViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.client.force_login(User.objects.create_user('tester'))
+        self.client.force_login(make_editor())
 
     def test_reconciliation_page(self):
         resp = self.client.get(reverse('reconciliation_dashboard'))
@@ -260,7 +261,7 @@ class NewAPIEndpointsTest(TestCase):
     def setUp(self):
         from rest_framework.test import APIClient
         self.client = APIClient()
-        self.client.force_authenticate(User.objects.create_user('tester'))
+        self.client.force_authenticate(make_editor())
         self.metric = GovernanceMetric.objects.create(
             name='api_test', display_name='API Test',
             description='test', data_type='numeric',

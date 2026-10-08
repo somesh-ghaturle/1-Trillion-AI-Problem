@@ -132,6 +132,17 @@ def run_checks():
     status, _, _ = Browser().request('POST', '/api/v1/sources/', payload, basic('wrong-password'))
     check('API POST with wrong password rejected', status in (401, 403), status)
 
+    # API with a token
+    status, _, body = Browser().request('POST', '/api/auth/token/',
+                                        json.dumps({'username': USER, 'password': PASSWORD}).encode(),
+                                        {'Content-Type': 'application/json'})
+    token = json.loads(body).get('token', '') if status == 200 else ''
+    check('obtain API token', bool(token), status)
+    payload = json.dumps({'name': f'E2E Token Source {time.time_ns()}', 'source_type': 'database'}).encode()
+    status, _, _ = Browser().request('POST', '/api/v1/sources/', payload,
+                                     {'Content-Type': 'application/json', 'Authorization': f'Token {token}'})
+    check('API POST with token', status == 201, status)
+
     print(f'{sum(results)}/{len(results)} checks passed')
     return all(results)
 
