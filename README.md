@@ -279,6 +279,20 @@ flowchart LR
 - SQL-aware comparison: formulas are parsed with [sqlglot](https://github.com/tobymao/sqlglot), so formatting and condition order don't matter, but real differences are named precisely — e.g. *"Tableau Cloud filter on `status` also includes 'pending'"*. Formulas that aren't valid SQL fall back to text similarity
 - Get severity-rated divergences with actionable recommendations
 
+### dbt Semantic Layer Import
+
+- Read metric definitions straight from a dbt project's semantic-layer YAML (`semantic_models` + `metrics`, dbt ≤1.11 and 1.12+ layouts). No warehouse connection or dbt install needed.
+- Each dbt metric is rendered as a formula (measures, aggregations, filters; `{{ Dimension('order__status') }}` resolves to the dimension's real SQL) and stored as the mapping for the governance metric with the same name
+- Reconciliation then compares dbt against every other source, e.g. *"dbt Semantic Layer filter on `status` also includes 'refunded'"*
+- Import from **Semantic Mappings → Import from dbt** (upload YAML) or the command line:
+
+```bash
+python manage.py import_dbt path/to/dbt_project            # or --dry-run, --source "Prod dbt"
+python manage.py import_dbt examples/dbt_project           # bundled example: 2 matches, 3 divergences, 3 unmatched
+```
+
+Ratio metrics are compared as `numerator / denominator`; derived, cumulative and conversion metrics are imported with a note about what is compared.
+
 ### Trust Scoring (6 Dimensions)
 
 - **Completeness** — Missing values, null fields, required columns
@@ -470,6 +484,9 @@ python manage.py validate_data --file path/to/data.csv --source "my-source"
 
 # Export governance metrics
 python manage.py export_governance
+
+# Import metric definitions from a dbt project's semantic layer
+python manage.py import_dbt path/to/dbt_project [--source NAME] [--dry-run]
 ```
 
 ---
@@ -477,7 +494,7 @@ python manage.py export_governance
 ## Tests
 
 ```bash
-# Run all 67 tests
+# Run all tests
 python manage.py test core -v 2
 
 # Run specific test modules
@@ -527,6 +544,7 @@ Unit test coverage includes:
 │   ├── utils/
 │   │   ├── reconciliation.py   # Cross-source reconciliation engine
 │   │   ├── osi_export.py       # OSI-compatible JSON export/import
+│   │   ├── dbt_import.py       # dbt Semantic Layer YAML -> semantic mappings
 │   │   ├── trust_scoring.py    # 6-dimension trust scoring engine
 │   │   ├── data_quality_validator.py  # CSV quality validation
 │   │   └── data_governance.py  # Governance utilities
@@ -552,6 +570,7 @@ Unit test coverage includes:
 ├── static/
 │   ├── css/main.css            # CSS with dark/light theme variables
 │   └── js/main.js              # Theme toggle, sortable tables, drag-drop
+├── examples/dbt_project/       # Sample dbt semantic layer for `import_dbt`
 ├── Dockerfile                  # Python 3.11-slim with Gunicorn
 ├── docker-compose.yml
 ├── requirements.txt            # Django, DRF, drf-spectacular, sqlglot, CORS, WhiteNoise, Gunicorn, pandas
@@ -611,7 +630,8 @@ Learn more: [VentureBeat — The $1 Trillion AI Problem](https://venturebeat.com
 
 ### Phase 4 — UX & Usability
 - [ ] **Advanced Search & Filtering** — Full-text search across metrics, sources, and definitions; filter by trust level, divergence severity, source type
-- [ ] **Real Data Source Connectors** — Live integrations with Snowflake, Tableau, Salesforce, BigQuery, and dbt for automatic semantic definition sync
+- [x] **dbt Connector** — Import metric definitions from dbt Semantic Layer YAML (upload or `import_dbt`)
+- [ ] **More Connectors** — Live integrations with Snowflake, Tableau, Salesforce, and BigQuery for automatic semantic definition sync
 - [ ] **Monitoring & Observability Dashboard** — Prometheus metrics, health checks, uptime tracking, and integration with Grafana
 
 ---

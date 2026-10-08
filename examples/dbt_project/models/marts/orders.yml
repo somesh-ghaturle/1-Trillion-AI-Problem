@@ -1,0 +1,90 @@
+# dbt <= 1.11 layout: semantic_models with measures/dimensions, metrics via type_params
+semantic_models:
+  - name: orders
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+    dimensions:
+      - name: ordered_at
+        type: time
+        type_params:
+          time_granularity: day
+      - name: order_status
+        type: categorical
+        expr: status
+      - name: order_type
+        type: categorical
+        expr: type
+    measures:
+      - name: order_revenue
+        agg: sum
+        expr: amount
+
+  - name: subscriptions
+    model: ref('fct_subscriptions')
+    defaults:
+      agg_time_dimension: started_at
+    entities:
+      - name: subscription
+        type: primary
+        expr: subscription_id
+    dimensions:
+      - name: started_at
+        type: time
+        type_params:
+          time_granularity: day
+      - name: subscription_status
+        type: categorical
+    measures:
+      - name: mrr
+        agg: sum
+        expr: subscription_amount / billing_interval_months
+      - name: churned_subscriptions
+        agg: count
+        expr: churned_customers
+      - name: subscriptions_at_period_start
+        agg: count
+        expr: total_customers_at_period_start
+
+metrics:
+  # Diverges: finance counts refunded orders as revenue
+  - name: total_revenue
+    label: Total revenue
+    type: simple
+    type_params:
+      measure: order_revenue
+    filter:
+      - "{{ Dimension('order__order_status') }} IN ('completed', 'refunded')"
+      - "{{ Dimension('order__order_type') }} IN ('subscription', 'one_time', 'services')"
+
+  # Matches governance exactly
+  - name: monthly_recurring_revenue
+    label: MRR
+    type: simple
+    type_params:
+      measure: mrr
+    filter: "{{ Dimension('subscription__subscription_status') }} = 'active'"
+
+  - name: churned
+    label: Churned subscriptions
+    type: simple
+    type_params:
+      measure: churned_subscriptions
+
+  - name: subscriptions_start
+    label: Subscriptions at period start
+    type: simple
+    type_params:
+      measure: subscriptions_at_period_start
+
+  # Diverges: governance reports churn as a percentage (* 100)
+  - name: churn_rate
+    label: Churn rate
+    type: ratio
+    type_params:
+      numerator: churned
+      denominator: subscriptions_start
