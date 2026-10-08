@@ -19,6 +19,14 @@
         <a href="/admin/core/datasource/add/" class="btn">&#10133; Add New Source</a>
     </div>
 
+    <form method="get" class="filter-bar" role="search">
+        <input type="search" name="q" value="{{ filters.q }}" placeholder="Search name, description, connector" aria-label="Search data sources">
+        <select name="type" aria-label="Source type"><option value="">All types</option>{% for v, l in source_types %}<option value="{{ v }}" {% if filters.type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+        <select name="trust" aria-label="Latest trust level"><option value="">Any trust level</option>{% for v, l in trust_levels %}<option value="{{ v }}" {% if filters.trust == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-sm btn-secondary">Filter</button>
+        {% if filtering %}<a href="?" class="text-sm">Clear</a> <span class="text-muted text-sm">{{ sources|length }} match{{ sources|length|pluralize:"es" }}</span>{% endif %}
+    </form>
+
     {% if sources %}
     <div class="table-wrapper">
         <table data-sortable>
@@ -108,8 +116,8 @@
     {% else %}
     <div class="empty-state">
         <div class="empty-icon">&#128451;</div>
-        <h3>No data sources configured yet</h3>
-        <p>Add your first data source to start monitoring data quality across your enterprise systems.</p>
+        <h3>{% if filtering %}No sources match these filters{% else %}No data sources configured yet{% endif %}</h3>
+        <p>{% if filtering %}<a href="?">Clear the filters</a> to see all sources.{% else %}Add your first data source to start monitoring data quality across your enterprise systems.{% endif %}</p>
         <a href="/admin/core/datasource/add/" class="btn">&#10133; Add Your First Source</a>
     </div>
     {% endif %}

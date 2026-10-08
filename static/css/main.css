@@ -712,7 +712,9 @@ tr:last-child td { border-bottom: none; }
 
 .form-group input,
 .form-group textarea,
-.form-group select {
+.form-group select,
+.filter-bar input,
+.filter-bar select {
     width: 100%;
     padding: 0.75rem 1rem;
     background: var(--bg-input);
@@ -726,7 +728,9 @@ tr:last-child td { border-bottom: none; }
 
 .form-group input:focus,
 .form-group textarea:focus,
-.form-group select:focus {
+.form-group select:focus,
+.filter-bar input:focus,
+.filter-bar select:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(249,115,22,0.15);
@@ -736,6 +740,17 @@ tr:last-child td { border-bottom: none; }
 .form-group textarea::placeholder {
     color: var(--text-muted);
 }
+
+/* Search / filter row above a list: GET form, wraps on small screens */
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.filter-bar input[type="search"] { flex: 1 1 14rem; width: auto; }
+.filter-bar select { flex: 0 1 11rem; width: auto; }
 
 .form-hint {
     font-size: 0.72rem;

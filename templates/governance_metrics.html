@@ -102,6 +102,13 @@
         <span class="text-muted text-sm">{{ metrics|length }} metrics defined &middot; {% include '_export_links.html' with dataset='governance-metrics' %}</span>
     </div>
 
+    <form method="get" class="filter-bar" role="search">
+        <input type="search" name="q" value="{{ filters.q }}" placeholder="Search name, description, formula, owner" aria-label="Search metrics">
+        <select name="category" aria-label="Category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c }}" {% if filters.category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+        <button type="submit" class="btn btn-sm btn-secondary">Filter</button>
+        {% if filtering %}<a href="?" class="text-sm">Clear</a> <span class="text-muted text-sm">{{ metrics|length }} match{{ metrics|length|pluralize:"es" }}</span>{% endif %}
+    </form>
+
     {% if metrics %}
     <div class="table-wrapper">
         <table data-sortable>
@@ -158,8 +165,8 @@
     {% else %}
     <div class="empty-state">
         <div class="empty-icon">&#128203;</div>
-        <h3>No governance metrics defined yet</h3>
-        <p>Add your first metric using the form above to establish data consistency across systems.</p>
+        <h3>{% if filtering %}No metrics match these filters{% else %}No governance metrics defined yet{% endif %}</h3>
+        <p>{% if filtering %}<a href="?">Clear the filters</a> to see all metrics.{% else %}Add your first metric using the form above to establish data consistency across systems.{% endif %}</p>
     </div>
     {% endif %}
 </div>

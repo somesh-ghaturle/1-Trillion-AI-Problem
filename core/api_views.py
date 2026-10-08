@@ -32,6 +32,9 @@ class DataSourceViewSet(viewsets.ModelViewSet):
     """API endpoint for managing data sources."""
     queryset = DataSource.objects.all()
     serializer_class = DataSourceSerializer
+    search_fields = ['name', 'description', 'connector']
+    filterset_fields = ['source_type', 'is_active']
+    ordering_fields = ['name', 'created_at']
 
     @action(detail=True, methods=['post'], url_path='validate')
     def run_validation(self, request, pk=None):
@@ -124,16 +127,25 @@ class DataSourceViewSet(viewsets.ModelViewSet):
 class ValidationResultViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ValidationResult.objects.select_related('source').all()
     serializer_class = ValidationResultSerializer
+    search_fields = ['source__name']
+    filterset_fields = ['source', 'passed']
+    ordering_fields = ['timestamp', 'quality_score']
 
 
 class TrustScoreViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TrustScore.objects.select_related('source').all()
     serializer_class = TrustScoreSerializer
+    search_fields = ['source__name']
+    filterset_fields = ['source', 'trust_level']
+    ordering_fields = ['calculated_at', 'overall_score']
 
 
 class GovernanceMetricViewSet(viewsets.ModelViewSet):
     queryset = GovernanceMetric.objects.all()
     serializer_class = GovernanceMetricSerializer
+    search_fields = ['name', 'display_name', 'description', 'formula', 'owner']
+    filterset_fields = ['category', 'data_type', 'is_active']
+    ordering_fields = ['name', 'created_at']
 
     @action(detail=False, methods=['get'], url_path='osi-export')
     def osi_export(self, request):
@@ -160,11 +172,17 @@ class GovernanceMetricViewSet(viewsets.ModelViewSet):
 class SemanticDefinitionViewSet(viewsets.ModelViewSet):
     queryset = SemanticDefinition.objects.select_related('governance_metric', 'source').all()
     serializer_class = SemanticDefinitionSerializer
+    search_fields = ['local_name', 'local_formula', 'local_description', 'governance_metric__name', 'source__name']
+    filterset_fields = ['governance_metric', 'source', 'is_consistent']
+    ordering_fields = ['local_name', 'updated_at']
 
 
 class ReconciliationRunViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ReconciliationRun.objects.select_related('governance_metric').all()
     serializer_class = ReconciliationRunSerializer
+    search_fields = ['governance_metric__name']
+    filterset_fields = ['governance_metric', 'status']
+    ordering_fields = ['run_at', 'consistency_score']
 
     @action(detail=False, methods=['post'], url_path='run')
     def run_reconciliation(self, request):
@@ -201,6 +219,8 @@ class ReconciliationRunViewSet(viewsets.ReadOnlyModelViewSet):
 class DataLineageViewSet(viewsets.ModelViewSet):
     queryset = DataLineage.objects.select_related('source_from', 'source_to').all()
     serializer_class = DataLineageSerializer
+    search_fields = ['description', 'source_from__name', 'source_to__name']
+    filterset_fields = ['flow_type', 'source_from', 'source_to']
 
 
 @extend_schema(responses=OpenApiTypes.OBJECT)

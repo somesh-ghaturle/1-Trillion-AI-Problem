@@ -130,6 +130,12 @@
         <h2>&#128337; Recent Reconciliation Runs</h2>
         {% include '_export_links.html' with dataset='reconciliation' label='Export latest findings' %}
     </div>
+    <form method="get" class="filter-bar" role="search">
+        <select name="status" aria-label="Run status"><option value="">Any status</option>{% for v, l in run_statuses %}<option value="{{ v }}" {% if run_filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+        <select name="severity" aria-label="Has a finding of severity"><option value="">Any severity</option><option value="critical" {% if run_filters.severity == 'critical' %}selected{% endif %}>Has critical</option><option value="high" {% if run_filters.severity == 'high' %}selected{% endif %}>Has high</option><option value="medium" {% if run_filters.severity == 'medium' %}selected{% endif %}>Has medium</option></select>
+        <button type="submit" class="btn btn-sm btn-secondary">Filter</button>
+        {% if run_filters.status or run_filters.severity %}<a href="?" class="text-sm">Clear</a>{% endif %}
+    </form>
     {% if recent_runs %}
     <div class="table-wrapper">
         <table data-sortable>

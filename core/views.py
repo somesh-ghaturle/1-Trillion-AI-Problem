@@ -8,7 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from datetime import timedelta
@@ -134,12 +134,30 @@ def dashboard(request):
 # Data Sources
 # ──────────────────────────────────────────────
 
+def _search(queryset, q, *fields):
+    """Case-insensitive match of `q` against any of `fields`."""
+    if not q:
+        return queryset
+    condition = Q()
+    for field in fields:
+        condition |= Q(**{f'{field}__icontains': q})
+    return queryset.filter(condition)
+
+
 def data_sources_list(request):
-    sources = DataSource.objects.all().prefetch_related('validations', 'trust_scores')
+    f = {k: request.GET.get(k, '').strip() for k in ('q', 'type', 'trust')}
+    sources = _search(DataSource.objects.all(), f['q'], 'name', 'description', 'connector')
+    if f['type']:
+        sources = sources.filter(source_type=f['type'])
+    sources = list(sources.prefetch_related('validations', 'trust_scores'))
     for source in sources:
         source.latest_trust = source.trust_scores.first()
         source.latest_validation = source.validations.first()
-    return render(request, 'data_sources.html', {'sources': sources})
+    if f['trust']:  # filter on each source's *latest* trust level
+        sources = [s for s in sources if s.latest_trust and s.latest_trust.trust_level == f['trust']]
+    return render(request, 'data_sources.html', {
+        'sources': sources, 'filters': f, 'filtering': any(f.values()),
+        'source_types': DataSource.SOURCE_TYPES, 'trust_levels': TrustScore.TRUST_LEVELS})
 
 
 def data_source_detail(request, pk):
@@ -228,7 +246,12 @@ def calculate_trust(request, pk):
 
 @permission_required_for_post('core.add_governancemetric')
 def governance_metrics(request):
-    metrics = GovernanceMetric.objects.filter(is_active=True).prefetch_related('semantic_definitions')
+    f = {k: request.GET.get(k, '').strip() for k in ('q', 'category')}
+    all_metrics = GovernanceMetric.objects.filter(is_active=True)
+    metrics = _search(all_metrics, f['q'], 'name', 'display_name', 'description', 'formula', 'owner')
+    if f['category']:
+        metrics = metrics.filter(category=f['category'])
+    metrics = metrics.prefetch_related('semantic_definitions')
 
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -258,7 +281,8 @@ def governance_metrics(request):
     for metric in metrics:
         metric.source_count = metric.semantic_definitions.count()
 
-    context = {'metrics': metrics}
+    categories = sorted(set(all_metrics.exclude(category='').values_list('category', flat=True)))
+    context = {'metrics': metrics, 'filters': f, 'filtering': any(f.values()), 'categories': categories}
     return render(request, 'governance_metrics.html', context)
 
 
@@ -269,9 +293,15 @@ def governance_metrics(request):
 @permission_required_for_post('core.add_semanticdefinition')
 def semantic_definitions(request):
     """View all semantic definitions (how metrics are implemented per source)."""
-    definitions = SemanticDefinition.objects.select_related(
-        'governance_metric', 'source'
-    ).all()
+    f = {k: request.GET.get(k, '').strip() for k in ('q', 'source', 'metric', 'consistency')}
+    definitions = _search(SemanticDefinition.objects.select_related('governance_metric', 'source'), f['q'],
+                          'local_name', 'local_formula', 'local_description', 'governance_metric__name', 'source__name')
+    if f['source'].isdigit():
+        definitions = definitions.filter(source_id=f['source'])
+    if f['metric'].isdigit():
+        definitions = definitions.filter(governance_metric_id=f['metric'])
+    if f['consistency'] in ('consistent', 'inconsistent'):
+        definitions = definitions.filter(is_consistent=f['consistency'] == 'consistent')
 
     metrics = GovernanceMetric.objects.filter(is_active=True)
     sources = DataSource.objects.filter(is_active=True)
@@ -308,6 +338,8 @@ def semantic_definitions(request):
         'definitions': definitions,
         'metrics': metrics,
         'sources': sources,
+        'filters': f,
+        'filtering': any(f.values()),
     }
     return render(request, 'semantic_definitions.html', context)
 
@@ -395,7 +427,14 @@ def reconciliation_dashboard(request):
     metrics = GovernanceMetric.objects.filter(is_active=True).prefetch_related(
         'semantic_definitions__source'
     )
-    recent_runs = ReconciliationRun.objects.order_by('-run_at')[:20]
+    f = {k: request.GET.get(k, '').strip() for k in ('status', 'severity')}
+    runs = ReconciliationRun.objects.select_related('governance_metric').order_by('-run_at')
+    if f['status']:
+        runs = runs.filter(status=f['status'])
+    if f['severity']:  # divergences is JSON; filter the recent window in Python (portable across SQLite/Postgres)
+        recent_runs = [r for r in runs[:200] if any(d.get('severity') == f['severity'] for d in r.divergences)][:20]
+    else:
+        recent_runs = runs[:20]
     definitions = SemanticDefinition.objects.select_related('governance_metric', 'source')
 
     # Summary stats
@@ -406,6 +445,8 @@ def reconciliation_dashboard(request):
     context = {
         'metrics': metrics,
         'recent_runs': recent_runs,
+        'run_filters': f,
+        'run_statuses': ReconciliationRun.STATUS_CHOICES,
         'total_metrics': total_metrics,
         'metrics_with_defs': metrics_with_defs,
         'inconsistent_count': inconsistent,
