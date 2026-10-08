@@ -382,7 +382,9 @@ curl -H "Authorization: Token 9944b0..." localhost:8000/api/v1/sources/ -d name=
 
 Session auth (the browsable API) also works. HTTP Basic auth is not accepted. Tokens can be viewed and revoked in **Admin → Auth Token → Tokens**.
 
-Rate limits key on the client IP. Behind one TLS proxy (Render, Heroku, Fly) the default is right; set `DJANGO_NUM_PROXIES` if you have a different number of proxies (docker-compose uses `0`).
+**Login lockout** ([django-axes](https://github.com/jazzband/django-axes)): 5 failed logins for the same username from the same IP lock that pair out for 15 minutes. This covers the login page, the admin and the token endpoint, and a successful login resets the count. Locking by username + IP means nobody can lock a user out from everywhere. Unlock early with **Admin → Axes → Access attempts** or `python manage.py axes_reset`.
+
+Rate limits and lockouts key on the client IP. Behind one TLS proxy (Render, Heroku, Fly) the default is right; set `DJANGO_NUM_PROXIES` if you have a different number of proxies (docker-compose uses `0`).
 
 Open <http://localhost:8000/> to see the dashboard populated with realistic enterprise data demonstrating cross-source inconsistencies.
 
@@ -487,7 +489,7 @@ python manage.py test core.tests.test_views -v 2
 
 ### End-to-end (Docker)
 
-`scripts/e2e.py` exercises the running docker-compose stack over HTTP: every page, CSV export, static files, anonymous-write blocking, login (including behind an HTTPS proxy), UI writes, reconciliation runs, and API token auth. CI runs it on every push and PR, then checks that a restart and a full `down`/`up` keep the data without re-seeding.
+`scripts/e2e.py` exercises the running docker-compose stack over HTTP: every page, CSV export, static files, anonymous-write blocking, login (including behind an HTTPS proxy), login lockout, UI writes, reconciliation runs, and API token auth. CI runs it on every push and PR, then checks that a restart and a full `down`/`up` keep the data without re-seeding.
 
 ```bash
 DJANGO_SUPERUSER_USERNAME=admin DJANGO_SUPERUSER_PASSWORD=secret docker compose up --build -d
@@ -502,7 +504,7 @@ Unit test coverage includes:
 - Reconciliation engine (consistent, divergent, naming, formula detection, structural SQL diff)
 - OSI export/import round-trip
 - Trust score calculation
-- Auth: anonymous reads allowed, anonymous and viewer writes blocked, editor and superuser writes allowed, API tokens, token endpoint throttling
+- Auth: anonymous reads allowed, anonymous and viewer writes blocked, editor and superuser writes allowed, API tokens, token endpoint throttling, spoofed X-Forwarded-For, login lockout
 - Seed command is idempotent
 
 ---

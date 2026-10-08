@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
 
@@ -24,6 +25,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'drf_spectacular',
+    'axes',
     'core',
 ]
 
@@ -37,7 +39,21 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',  # must be last
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',  # must be first: refuses locked-out logins
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# Login lockout (django-axes) for every password check: login pages, admin, API token endpoint.
+# Keyed on username + IP, so an attacker can't lock a user out everywhere.
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=15)
+AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
+AXES_RESET_ON_SUCCESS = True
+AXES_CLIENT_IP_CALLABLE = 'core.api_views.client_ip'  # same proxy-aware IP as API throttling
 
 ROOT_URLCONF = 'trustsite.urls'
 

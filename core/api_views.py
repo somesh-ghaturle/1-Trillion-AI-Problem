@@ -6,7 +6,7 @@ from rest_framework import viewsets, status
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import api_view, action, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.throttling import BaseThrottle, ScopedRateThrottle
 from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -223,3 +223,8 @@ class ThrottledObtainAuthToken(ObtainAuthToken):
     """POST username/password -> {"token": ...}. Throttled: DRF applies none by default."""
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'token'
+
+
+def client_ip(request):
+    """Client IP honouring REST_FRAMEWORK['NUM_PROXIES'], so a spoofed X-Forwarded-For is ignored."""
+    return BaseThrottle().get_ident(request)

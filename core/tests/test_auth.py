@@ -132,3 +132,53 @@ class ThrottleBypassTest(TestCase):
         resp = APIClient().post('/api/v1/sources/', {'name': 'x', 'source_type': 'database'},
                                 HTTP_AUTHORIZATION='Basic ' + base64.b64encode(b'root:pw').decode())
         self.assertIn(resp.status_code, (401, 403))
+
+
+class LoginLockoutTest(TestCase):
+    """django-axes: 5 failures for a username from one IP lock that pair out for 15 minutes."""
+
+    def setUp(self):
+        User.objects.create_user('alice', password='right-password')
+
+    def login(self, password, ip='198.51.100.1'):
+        return self.client.post(reverse('rest_framework:login'),
+                                {'username': 'alice', 'password': password}, REMOTE_ADDR=ip)
+
+    def test_locked_after_five_failures_even_with_right_password(self):
+        for _ in range(5):
+            self.login('wrong')
+        resp = self.login('right-password')
+        self.assertEqual(resp.status_code, 429)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_other_ip_not_locked(self):
+        for _ in range(5):
+            self.login('wrong')
+        self.assertEqual(self.login('right-password', ip='198.51.100.2').status_code, 302)
+
+    def test_success_resets_failures(self):
+        for _ in range(4):
+            self.login('wrong')
+        self.assertEqual(self.login('right-password').status_code, 302)
+        self.client.logout()
+        for _ in range(4):
+            self.login('wrong')
+        self.assertEqual(self.login('right-password').status_code, 302)
+
+    def test_token_endpoint_shares_lockout(self):
+        from django.core.cache import cache
+        cache.clear()
+        for _ in range(5):
+            self.login('wrong')
+        resp = APIClient().post('/api/auth/token/', {'username': 'alice', 'password': 'right-password'},
+                                REMOTE_ADDR='198.51.100.1')
+        cache.clear()
+        # Refused with DRF's generic 400 (axes' 429 page only wraps plain Django views); no token issued
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn('token', resp.data)
+
+    def test_spoofed_forwarded_for_does_not_dodge_lockout(self):
+        for i in range(5):
+            self.client.post(reverse('rest_framework:login'), {'username': 'alice', 'password': 'wrong'},
+                             REMOTE_ADDR='198.51.100.1', HTTP_X_FORWARDED_FOR=f'203.0.113.{i}')
+        self.assertEqual(self.login('right-password').status_code, 429)
