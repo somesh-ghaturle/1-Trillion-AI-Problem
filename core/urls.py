@@ -41,6 +41,7 @@ urlpatterns = [
     # API endpoints (DRF)
     path('api/', api_views.api_health, name='index'),
     path('api/v1/', include(router.urls)),
+    path('api/auth/token/', api_views.ThrottledObtainAuthToken.as_view(), name='api_token'),
     path('api/auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='api_docs'),

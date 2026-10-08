@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from core.tests import make_editor
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
@@ -24,12 +25,12 @@ class AnonymousWriteTest(TestCase):
         self.assertFalse(DataSource.objects.exists())
 
     def test_logged_in_post_allowed(self):
-        self.client.force_login(User.objects.create_user('tester'))
+        self.client.force_login(make_editor())
         self.client.post(reverse('governance_metrics'), {'name': 'x', 'display_name': 'X'})
         self.assertTrue(GovernanceMetric.objects.filter(name='x').exists())
 
     def test_duplicate_metric_name_shows_error(self):
-        self.client.force_login(User.objects.create_user('tester'))
+        self.client.force_login(make_editor())
         self.client.post(reverse('governance_metrics'), {'name': 'x', 'display_name': 'X'})
         resp = self.client.post(reverse('governance_metrics'), {'name': 'x', 'display_name': 'X2'})
         self.assertContains(resp, 'already exists')
@@ -42,3 +43,60 @@ class SeedIdempotencyTest(TestCase):
         before = TrustScore.objects.count()
         call_command('seed_data', stdout=open('/dev/null', 'w'))
         self.assertEqual(TrustScore.objects.count(), before)
+
+
+class RolesTest(TestCase):
+    """Viewer = logged in without Editor group: read-only. Editor/superuser can write."""
+
+    def test_editor_group_has_core_permissions(self):
+        from django.contrib.auth.models import Group
+        perms = set(Group.objects.get(name='Editor').permissions.values_list('codename', flat=True))
+        self.assertTrue({'add_governancemetric', 'delete_datasource', 'add_reconciliationrun'} <= perms)
+
+    def test_viewer_form_post_forbidden(self):
+        self.client.force_login(User.objects.create_user('viewer'))
+        self.assertEqual(self.client.get(reverse('governance_metrics')).status_code, 200)
+        resp = self.client.post(reverse('governance_metrics'), {'name': 'x', 'display_name': 'X'})
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(GovernanceMetric.objects.exists())
+
+    def test_viewer_api_write_forbidden(self):
+        client = APIClient()
+        client.force_authenticate(User.objects.create_user('viewer'))
+        self.assertEqual(client.get('/api/v1/sources/').status_code, 200)
+        self.assertEqual(client.post('/api/v1/sources/', {'name': 'x', 'source_type': 'database'}).status_code, 403)
+        self.assertEqual(client.post('/api/v1/reconciliations/run/').status_code, 403)
+
+    def test_superuser_can_write(self):
+        client = APIClient()
+        client.force_authenticate(User.objects.create_superuser('root', password='pw'))
+        self.assertEqual(client.post('/api/v1/sources/', {'name': 'x', 'source_type': 'database'}).status_code, 201)
+
+
+class TokenAuthTest(TestCase):
+    def test_obtain_and_use_token(self):
+        from core.tests import make_editor
+        user = make_editor('tokenuser')
+        user.set_password('pw')
+        user.save()
+        resp = APIClient().post('/api/auth/token/', {'username': 'tokenuser', 'password': 'pw'})
+        self.assertEqual(resp.status_code, 200)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION='Token ' + resp.data['token'])
+        self.assertEqual(client.post('/api/v1/sources/', {'name': 'x', 'source_type': 'database'}).status_code, 201)
+
+    def test_bad_credentials_and_bad_token_rejected(self):
+        User.objects.create_user('u', password='pw')
+        self.assertEqual(APIClient().post('/api/auth/token/', {'username': 'u', 'password': 'nope'}).status_code, 400)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION='Token not-a-real-token')
+        self.assertIn(client.post('/api/v1/sources/', {'name': 'x'}).status_code, (401, 403))
+
+    def test_token_endpoint_throttled(self):
+        from django.core.cache import cache
+        cache.clear()
+        statuses = [APIClient().post('/api/auth/token/', {'username': 'x', 'password': 'y'}).status_code
+                    for _ in range(11)]
+        cache.clear()
+        self.assertEqual(statuses[-1], 429)
+        self.assertNotIn(429, statuses[:10])

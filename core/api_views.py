@@ -3,7 +3,10 @@ import json
 import logging
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, action
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import api_view, action, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -202,6 +205,7 @@ class DataLineageViewSet(viewsets.ModelViewSet):
 
 @extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def api_health(request):
     """API health check endpoint."""
     latest = TrustScore.objects.order_by('-calculated_at').first()
@@ -213,3 +217,9 @@ def api_health(request):
         'latest_trust_score': latest.overall_score if latest else None,
         'timestamp': timezone.now().isoformat(),
     })
+
+
+class ThrottledObtainAuthToken(ObtainAuthToken):
+    """POST username/password -> {"token": ...}. Throttled: DRF applies none by default."""
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'token'
