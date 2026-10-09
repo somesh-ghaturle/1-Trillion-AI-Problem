@@ -6,6 +6,8 @@ A Django-based platform that detects, visualizes, and resolves cross-source metr
 
 Built around the [Open Semantic Interchange (OSI)](https://venturebeat.com/ai/the-usd1-trillion-ai-problem-why-snowflake-tableau-and-blackrock-are-giving) initiative by Snowflake, Salesforce, dbt Labs, BlackRock, and 15+ other companies.
 
+**Live demo:** <https://trust-control-center.onrender.com> (read-only, sample data; free tier, so the first load can take about a minute to wake)
+
 ---
 
 <div align="center">
@@ -454,6 +456,8 @@ python manage.py seed_data --flush
 ---
 
 ## Deploy a live demo
+
+A demo is already running at <https://trust-control-center.onrender.com>. To deploy your own copy:
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/somesh-ghaturle/1-Trillion-AI-Problem)
 
