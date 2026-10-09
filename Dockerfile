@@ -19,4 +19,4 @@ ENV DJANGO_DEBUG=0
 ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus
 RUN mkdir -p $PROMETHEUS_MULTIPROC_DIR  # every process (web, worker, manage.py) needs it to exist
 
-CMD ["sh", "-c", "mkdir -p $PROMETHEUS_MULTIPROC_DIR && python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py seed_data && { [ -z \"$DJANGO_SUPERUSER_USERNAME\" ] || python manage.py createsuperuser --noinput || true; } && rm -rf $PROMETHEUS_MULTIPROC_DIR/* && gunicorn trustsite.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+CMD ["sh", "-c", "mkdir -p $PROMETHEUS_MULTIPROC_DIR && python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py seed_data && { [ -z \"$DJANGO_SUPERUSER_USERNAME\" ] || python manage.py createsuperuser --noinput --email \"${DJANGO_SUPERUSER_EMAIL:-admin@example.com}\" || true; } && rm -rf $PROMETHEUS_MULTIPROC_DIR/* && gunicorn trustsite.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-3}"]
