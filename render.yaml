@@ -1,0 +1,26 @@
+# Render Blueprint: one-click demo deploy (free plan).
+# https://render.com/deploy?repo=https://github.com/somesh-ghaturle/1-Trillion-AI-Problem
+#
+# Demo setup: SQLite inside the container, re-seeded with sample data whenever the service
+# starts fresh. Background tasks run inline (no REDIS_URL). Visitors are read-only; sign in with
+# admin and the generated DJANGO_SUPERUSER_PASSWORD (Render dashboard -> Environment) to write.
+services:
+  - type: web
+    runtime: docker
+    name: trust-control-center
+    plan: free
+    branch: main
+    healthCheckPath: /healthz
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: admin
+      - key: DJANGO_SUPERUSER_PASSWORD
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: WEB_CONCURRENCY
+        value: "2"  # free plan has 512 MB; each worker loads pandas/pyarrow

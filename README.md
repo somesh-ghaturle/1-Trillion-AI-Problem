@@ -453,6 +453,12 @@ python manage.py seed_data --flush
 
 ---
 
+## Deploy a live demo
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/somesh-ghaturle/1-Trillion-AI-Problem)
+
+One click creates a free Render web service from [`render.yaml`](render.yaml): Docker build, sample data, `/healthz` health check, generated secret key and admin password (shown under the service's **Environment** tab). The free plan sleeps after 15 minutes idle, so the first visit after a quiet spell takes about a minute to wake.
+
 ## Docker
 
 ```bash
